@@ -13,3 +13,4 @@ from basic import *
 # regApp = app
 from registration import *
 from stats import *
+from treatment import *
