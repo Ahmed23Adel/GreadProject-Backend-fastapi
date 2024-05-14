@@ -11,9 +11,9 @@ from datetime import datetime, timedelta
 from jwt import PyJWTError
 
 load_dotenv() 
-MONGO_CLIENT = os.getenv("MONGO_CLIENT")
-DB_NAME = os.getenv("DB_NAME")
-SECRET_KEY = os.getenv("SECRET_KEY")
+MONGO_CLIENT = os.environ.get('MONGO_CLIENT') 
+DB_NAME = os.environ.get('DB_NAME')
+SECRET_KEY = os.environ.get('SECRET_KEY') 
 ALGORITHM = "HS256"
 
 client = None
@@ -36,10 +36,9 @@ def connect_to_db():
 connect_to_db()
 
 app = FastAPI()
-origins = ["http://localhost:5173"]  # Add any other origins you want to allow
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Specify allowed origins
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,  # Allow credentials (e.g., cookies or Authorization headers)
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
