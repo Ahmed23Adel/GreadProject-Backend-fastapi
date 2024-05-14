@@ -24,7 +24,7 @@ def get_default_treatment(token: str = Depends(get_token_auth_header)):
 
 
 @app.put("/update-default-treatment", status_code=status.HTTP_200_OK)
-def update_default_treatment(diseaesName: str, treatment: str, token: str = Depends(get_token_auth_header)):
+def update_default_treatment(diseaesName: str, treatment: str, token: str = Depends(get_token_auth_header_expert)):
     # Your update logic here
     #diseaesName =  EB LB
     result = treatment_collection.update_many(
@@ -36,7 +36,7 @@ def update_default_treatment(diseaesName: str, treatment: str, token: str = Depe
 
 
 @app.post("/accept-location-treated", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
-def accept_location_treated(location_name: str, token: str = Depends(get_token_auth_header)):
+def accept_location_treated(location_name: str, token: str = Depends(get_token_auth_header_expert)):
     result = images_collection.update_many(
         {"Location": location_name},  # Filter criteria
         {"$set": {"Treated": 1}}  # Update to set the "treated" attribute to 1
@@ -46,7 +46,7 @@ def accept_location_treated(location_name: str, token: str = Depends(get_token_a
 
 
 @app.put("/accept-treated", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
-def accept_treated(location: str = Query(...), token: str = Depends(get_token_auth_header)):
+def accept_treated(location: str = Query(...), token: str = Depends(get_token_auth_header_expert)):
     # Your logic to process the location here
     result = images_collection.update_many(
         {"Location": location},  # Filter criteria
@@ -72,7 +72,7 @@ def get_all_locations(token: str = Depends(get_token_auth_header)):
 
 
 @app.put("/update_treatment", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
-def update_treatment(location: str, treatment: str, token: str = Depends(get_token_auth_header)):
+def update_treatment(location: str, treatment: str, token: str = Depends(get_token_auth_header_expert)):
     # Your logic to update the treatment for the location here
     result = treatment_collection.update_one(
         {"Location": location},  # Filter criteria
@@ -128,7 +128,7 @@ def get_treatment_value(location: str = Query(...), token: str = Depends(get_tok
 
 
 @app.put("/extend_location_by_days", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
-def extend_location_by_days(location: str, period: str, token: str = Depends(get_token_auth_header)):
+def extend_location_by_days(location: str, period: str, token: str = Depends(get_token_auth_header_expert)):
     # Your logic to extend the location by the specified number of days here
     result = treatment_collection.update_one({"Location": location}, {"$set": {"days_treatment": period}})
     
@@ -143,7 +143,7 @@ def extend_location_by_days(location: str, period: str, token: str = Depends(get
 
 
 @app.put("/declare_location_healthy", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
-def declare_location_healthy(location: str, token: str = Depends(get_token_auth_header)):
+def declare_location_healthy(location: str, token: str = Depends(get_token_auth_header_expert)):
     result = images_collection.update_many(
         {"Location": location},  # Filter criteria
         {"$set": {"Treated": 1, "Image_Class": 3}},  # Update to set the "treated" attribute to 1

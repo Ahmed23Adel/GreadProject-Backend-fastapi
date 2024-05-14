@@ -47,15 +47,57 @@ app.add_middleware(
 
 print("Done building basics")
 
-def get_token_auth_header(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+security = HTTPBearer()
+
+def get_token_auth_header_parent(expected_user_type: str):
+    if expected_user_type == "expert":
+        return get_token_auth_header_expert
+    elif expected_user_type == "owner":
+        return get_token_auth_header_owner
+
+
+def get_token_auth_header(
+    credentials: HTTPAuthorizationCredentials = Depends(security)):
     if credentials is None:
         raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if datetime.now() > datetime.fromtimestamp(payload["exp"]):
+            raise HTTPException(status_code=401, detail="Token has expired")
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def get_token_auth_header_expert(
+    credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_type = payload["user_type"]
+        if user_type != "expert":
+            raise HTTPException(status_code=401, detail="Only expert can perform this operation")
         # Check expiration time
         if datetime.now() > datetime.fromtimestamp(payload["exp"]):
             raise HTTPException(status_code=401, detail="Token has expired")
-        return token
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+
+
+def get_token_auth_header_owner(
+    credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_type = payload["user_type"]
+        if user_type != "owner":
+            raise HTTPException(status_code=401, detail="Only owner can perform this operation")
+        # Check expiration time
+        if datetime.now() > datetime.fromtimestamp(payload["exp"]):
+            raise HTTPException(status_code=401, detail="Token has expired")
     except PyJWTError as e:
         raise HTTPException(status_code=401, detail="Invalid token")

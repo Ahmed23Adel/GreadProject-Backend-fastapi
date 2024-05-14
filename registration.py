@@ -43,23 +43,18 @@ async def get_all_users():
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.now() + expires_delta
-    to_encode.update({"exp": expire.timestamp()})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")  # Assuming you're using HMAC algorithm
+    print("data", data.get("user_type") )
+    to_encode.update({
+        "exp": expire.timestamp(),
+        "user_type": data.get("user_type")  
+    })
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")  
     return encoded_jwt
 
 
 
-async def get_current_user(token: str = Depends(create_access_token)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    return username
+    
+
 
 @app.get("/login/")
 async def login(user_name: str, password: str):
@@ -68,8 +63,9 @@ async def login(user_name: str, password: str):
 
     if existing_user:
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        user_type = existing_user.get("type")
         access_token = create_access_token(
-            data={"sub": user_name}, expires_delta=access_token_expires
+            data={"sub": user_name, 'user_type': user_type}, expires_delta=access_token_expires
         )
         return {
             "success": True,

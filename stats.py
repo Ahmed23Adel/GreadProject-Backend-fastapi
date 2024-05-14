@@ -245,7 +245,7 @@ def get_all_locations(token: str = Depends(get_token_auth_header)):
 @app.get("/get_disease_statistics", status_code=status.HTTP_200_OK, response_model=DataResponseStatistics)
 def get_disease_statistics(token: str = Depends(get_token_auth_header), date: str = Query(...)):
     # Sample data for diseases and percentages (replace with your actual data retrieval logic)
-   
+
     try:
         fields_to_get = {
             "Image_Path": 1,
