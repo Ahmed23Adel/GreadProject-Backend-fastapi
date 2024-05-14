@@ -1,8 +1,10 @@
 from basic import *
 from datetime import datetime, timedelta
 import jwt
-from fastapi import status, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import HTTPException, Depends
+from datetime import datetime, timedelta
+import jwt  
+
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 
@@ -37,10 +39,6 @@ async def get_all_users():
     
     return {"success": True, "data": {"users": users}}
 
-
-
-from datetime import datetime, timedelta
-import jwt  # Import jwt module from PyJWT
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()

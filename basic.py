@@ -5,12 +5,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, Header, HTTPException
 from datetime import date
-from typing import Optional
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt 
+from datetime import datetime, timedelta
+from jwt import PyJWTError
 
 load_dotenv() 
 MONGO_CLIENT = os.getenv("MONGO_CLIENT")
 DB_NAME = os.getenv("DB_NAME")
 SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
 
 client = None
 db = None
@@ -43,13 +47,15 @@ app.add_middleware(
 
 print("Done building basics")
 
-def get_token_auth_header(authorization: Optional[str] = Header(None)):
-    if authorization is None:
+def get_token_auth_header(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+    if credentials is None:
         raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=401, detail="Invalid token. Please provide a valid bearer token.")
-    token = parts[1]
-    # Here you can add your logic to check if the token is valid
-    # For simplicity, let's assume the token is valid for now
-    return token
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Check expiration time
+        if datetime.now() > datetime.fromtimestamp(payload["exp"]):
+            raise HTTPException(status_code=401, detail="Token has expired")
+        return token
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
