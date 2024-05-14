@@ -1,10 +1,10 @@
-from basic import *
+from src.basic import *
 from datetime import datetime
 from fastapi import status, HTTPException, Depends
 from datetime import date, datetime
 from fastapi import Query
 import numpy as np
-from stasModels import (
+from src.stasModels import (
     TodayPics, 
     TodayPicsModel,
     DatePics, 
@@ -19,7 +19,7 @@ from stasModels import (
     DataResponseStatistics
 )
 
-from utils import (
+from src.utils import (
     parse_date_from,
     parse_date_to,
     transform

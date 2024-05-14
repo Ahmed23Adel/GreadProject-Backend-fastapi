@@ -1,4 +1,4 @@
-from basic import *
+from src.basic import *
 from datetime import datetime, timedelta
 import jwt
 from fastapi import HTTPException, Depends

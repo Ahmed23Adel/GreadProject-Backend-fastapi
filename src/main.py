@@ -5,12 +5,12 @@ import os
 from werkzeug.security import check_password_hash
 from bson.objectid import ObjectId
 import numpy as np
-from basic import *
+from src.basic import *
 
 
 
-
+print("IN main")
 # regApp = app
-from registration import *
-from stats import *
-from treatment import *
+from src.registration import *
+from src.stats import *
+from src.treatment import *

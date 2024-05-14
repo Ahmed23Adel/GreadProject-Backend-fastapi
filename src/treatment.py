@@ -1,7 +1,7 @@
 from fastapi import status, HTTPException, Depends
-from basic import *
+from src.basic import *
 from fastapi import Query
-from treatmentModels import (
+from src.treatmentModels import (
     SuccessResponse,
 )
 
