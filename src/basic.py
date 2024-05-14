@@ -15,6 +15,7 @@ MONGO_CLIENT = os.environ.get('MONGO_CLIENT')
 DB_NAME = os.environ.get('DB_NAME')
 SECRET_KEY = os.environ.get('SECRET_KEY') 
 ALGORITHM = "HS256"
+
 print("Keys")
 print("MONGO_CLIENT: ", MONGO_CLIENT)
 print("DB_NAME: ", DB_NAME)
@@ -30,7 +31,9 @@ user_collection = None
 def connect_to_db():
     global client, db, images_collection, treatment_collection, reports_collection, user_collection
     if client is None:
-        client = MongoClient(MONGO_CLIENT)
+        import certifi
+        ca = certifi.where()
+        client = MongoClient(MONGO_CLIENT, tlsCAFile=ca)
         db = client[DB_NAME]
         images_collection = db['images']  
         treatment_collection = db['treatment']  
