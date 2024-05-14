@@ -15,6 +15,10 @@ MONGO_CLIENT = os.environ.get('MONGO_CLIENT')
 DB_NAME = os.environ.get('DB_NAME')
 SECRET_KEY = os.environ.get('SECRET_KEY') 
 ALGORITHM = "HS256"
+print("Keys")
+print("MONGO_CLIENT: ", MONGO_CLIENT)
+print("DB_NAME: ", DB_NAME)
+print("SECRET_KEY: ", SECRET_KEY)
 
 client = None
 db = None
