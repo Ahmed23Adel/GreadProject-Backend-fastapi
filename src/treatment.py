@@ -31,7 +31,8 @@ def update_default_treatment(diseaesName: str, treatment: str, token: str = Depe
         {"Disease": diseaesName},  # Filter criteria
         {"$set": {"Treatment": treatment}}  # Update to set the "treated" attribute to 1
     )
-    return {"success": True, "message": f"Disease name: {diseaesName}, Default treatment for {diseaesName} updated to: {treatment}"}
+    print(treatment)
+    return {"success": True, "data": f"Disease name: {diseaesName}, Default treatment for {diseaesName} updated to: {treatment}"}
 
 
 
@@ -59,7 +60,8 @@ def accept_treated(location: str = Query(...), token: str = Depends(get_token_au
 def get_diseased_locations(token: str = Depends(get_token_auth_header)):
     # Your update logic here
     #diseaesName =  EB LB
-    unique_locations = list(images_collection.distinct("Location", {"$and": [{"Image_Class": {"$in": [0, 1]}}, {"Location": {"$exists": True}}]}))
+    # TODO maake sure substituting image_class with treated is ok
+    unique_locations = list(images_collection.distinct("Location", {"$and": [{"Treated": {"$in": [0]}}, {"Location": {"$exists": True}}]}))
 
     return {"success": True, "data": {"locations": unique_locations}}
 
@@ -146,7 +148,27 @@ def extend_location_by_days(location: str, period: str, token: str = Depends(get
 def declare_location_healthy(location: str, token: str = Depends(get_token_auth_header_expert)):
     result = images_collection.update_many(
         {"Location": location},  # Filter criteria
-        {"$set": {"Treated": 1, "Image_Class": 3}},  # Update to set the "treated" attribute to 1
+        # TODO make sure "Image_Class": 3 is ok to be removed
+        {"$set": {"Treated": 1, }},  # Update to set the "treated" attribute to 1
     )
     # Your logic to declare the location healthy here
     return SuccessResponse(success=True)
+
+def declare_location_unhealthy(location: str):
+    result = images_collection.update_many(
+        {"Location": location},  # Filter criteria
+        {"$set": {"Treated": 0}},  # Update to set the "treated" attribute to 1
+    )
+    # Your logic to declare the location healthy here
+    return SuccessResponse(success=True)
+
+
+def delete_treatment_by_location(location: str):
+    # Find and delete the document with the specified location
+    result = treatment_collection.delete_one({"Location": location})
+
+    # Check if a document was deleted
+    if result.deleted_count == 1:
+        return {"success": True, "message": "Document deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Document not found for the specified location")

@@ -4,32 +4,47 @@ import jwt
 from fastapi import HTTPException, Depends
 from datetime import datetime, timedelta
 import jwt  
+import bcrypt
+from bson import ObjectId
 
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 
 
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password.decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
 @app.post("/register/")
-async def register(user_name: str, password: str, type:str):
+async def register(user_name: str, password: str, type: str):
     existing_user = user_collection.find_one({"user_name": user_name})
 
     if existing_user:
-        return {"success": False, "data": {"user_id": 'None'}}
+        return {"success": False, "data": {"user_id": None}}
+
+    # Hash the password before saving
+    hashed_password = hash_password(password)
 
     # Insert the new user into the database
     new_user = {
         "user_name": user_name,
-        "password": password,
-        "type": type.lower()  # You can set the default type for new users
+        "password": hashed_password,
+        "type": type.lower(),
+        "activated": True  # Adding the activated field with default value True
     }
     user_id = user_collection.insert_one(new_user).inserted_id
 
-    return {"success": True, "data": {"user_id": 'user_id'}}
+    return {"success": True, "data": {"user_id": str(user_id)}}
 
 
 
 @app.get("/users/")  
-async def get_all_users():
+async def get_all_users(token: str = Depends(get_token_auth_header_owner)):
     users = list(user_collection.find({}))
     if not users:
         return {"success":False, "data": {"users": []}}
@@ -53,15 +68,15 @@ def create_access_token(data: dict, expires_delta: timedelta):
 
 
 
-    
-
-
 @app.get("/login/")
 async def login(user_name: str, password: str):
     # Check if user exists in the database
-    existing_user = user_collection.find_one({"user_name": user_name, "password": password})
+    existing_user = user_collection.find_one({"user_name": user_name})
 
-    if existing_user:
+    if existing_user and verify_password(password, existing_user["password"]):
+        if not existing_user.get("activated", False):
+            raise HTTPException(status_code=403, detail="User is not activated")
+        
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         user_type = existing_user.get("type")
         access_token = create_access_token(
@@ -70,10 +85,33 @@ async def login(user_name: str, password: str):
         return {
             "success": True,
             "data": {
-                "user_type": existing_user.get("type"),
+                "user_type": user_type,
                 "user_id": str(existing_user.get("_id")),
                 "token": access_token,
             },
         }
     else:
-        return {"success": False, "data": {"user_type": ""}}
+        raise HTTPException(status_code=401, detail="Incorrect password or username")
+
+@app.put("/activate_user/")
+async def activate_user(user_id: str, activated: bool, token: str = Depends(get_token_auth_header_owner)):
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+
+    existing_user = user_collection.find_one({"_id": ObjectId(user_id)})
+    
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if existing_user.get("type") == "owner":
+        raise HTTPException(status_code=403, detail="Cannot activate an owner")
+
+    result = user_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"activated": activated}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"success": True, "data": {"user_id": user_id, "activated": activated}}
