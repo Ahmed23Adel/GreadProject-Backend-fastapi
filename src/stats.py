@@ -16,7 +16,10 @@ from src.stasModels import (
     DatePerDiseasedPlants,
     LocationsResponse,
     DataResponseLocations,
-    DataResponseStatistics
+    DataResponseStatistics,
+    LatestPicsModel,
+    LatestPics,
+    NewImage
 )
 
 from src.utils import (
@@ -27,16 +30,52 @@ from src.utils import (
 
 
 
-@app.get("/today_pics", status_code=status.HTTP_200_OK, response_model=TodayPicsModel)
-def get_today_pics(token: str = Depends(get_token_auth_header)):
-    # Get the current date
-    current_date = date.today().strftime("%Y-%m-%d")
+@app.post("/images/create/")
+def create_new_image(new_image: NewImage, token: str = Depends(get_token_auth_header)):
+    # Convert Classification and Confidence lists to BSON-compatible format
+    classification_bson = [int(x) for x in new_image.Classification]
+    confidence_bson = [float(x) for x in new_image.Confidence]
 
+    # Create the new image document
+    new_image_doc = {
+        "Image_Path": new_image.Image_Path,
+        "Location": new_image.Location,
+        "Date": new_image.Date,
+        "Time": new_image.Time,
+        "Classification": classification_bson,
+        "Confidence": confidence_bson,
+        "bbox": new_image.bbox,
+        "Image_Class": new_image.Image_Class,
+        "Edited": new_image.Edited,
+        "Treated": new_image.Treated,
+        "Resized_Path": new_image.Resized_Path,
+        "Annotated_Path": new_image.Annotated_Path
+    }
+
+    # Insert the new image document into the database
+    result = images_collection.insert_one(new_image_doc)
+
+    if result.inserted_id:
+        return {"success": True, "message": "Image created successfully", "image_id": str(result.inserted_id)}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create image")
+
+@app.get("/latest_pics", status_code=status.HTTP_200_OK, response_model=LatestPicsModel)
+def get_latest_pics(token: str = Depends(get_token_auth_header)):
+    # Find the latest date in the images collection
+    latest_entry = images_collection.find_one(sort=[("Date", -1)])
+
+    if not latest_entry:
+        raise HTTPException(status_code=404, detail="No images found")
+
+    latest_date = latest_entry["Date"]
+    print("Latest Date", latest_date)
     # Count images with Image_Class 0 or 1
-    total_images = images_collection.count_documents({"Date": current_date})
-    count_diseased = images_collection.count_documents({"Date": current_date, "Image_Class": {"$in": [0, 1]}})
+    total_images = images_collection.count_documents({"Date": latest_date})
+    print("total_images",total_images)
+    count_diseased = images_collection.count_documents({"Date": latest_date, "Image_Class": {"$in": [0, 1]}})
     count_diseased_edited = images_collection.count_documents({
-        "Date": current_date,
+        "Date": latest_date,
         "Image_Class": {"$in": [0, 1]},
         "Edited": 1
     })
@@ -44,21 +83,25 @@ def get_today_pics(token: str = Depends(get_token_auth_header)):
         # Calculate percentages
         percentage_diseased = (count_diseased / total_images) * 100
         percentage_edited = (count_diseased_edited / total_images) * 100
-        mod_percentage = count_diseased_edited*100/count_diseased
+        mod_percentage = (count_diseased_edited / count_diseased) * 100 if count_diseased != 0 else 0
+        # print("count_diseased_edited", count_diseased_edited)
+        # print("count_diseased", count_diseased)
     else:
         percentage_diseased = 0
         percentage_edited = 0
         mod_percentage = 0
-        
-    # Create TodayPics instance
-    today_pics = TodayPics(
-        count=total_images,
-        percentage_diseased=percentage_diseased,
-        percentage_diseased_after_mod=percentage_edited,
-        mod_rate=mod_percentage
-    )
-    return TodayPicsModel(success=True, data=today_pics)
 
+    # Create TodayPics instance
+    print(total_images, percentage_diseased, percentage_edited, mod_percentage)
+    latest_pics = LatestPics(
+        latest_date=str(latest_date),
+        count=total_images,
+        percentage_diseased=f"{percentage_diseased:.2f}",
+        percentage_diseased_after_mod=f"{percentage_edited:.2f}",
+        mod_rate=f"{mod_percentage:.2f}"
+    )
+
+    return LatestPicsModel(success=True, data=latest_pics)
 
 def parse_date(date_str: str = Query(...)) -> date:
     try:
@@ -116,7 +159,8 @@ def get_disease_mons_percentage(token: str = Depends(get_token_auth_header),):
     LB_data = [0] * len(months)
 
     # Query MongoDB collection
-    cursor = images_collection.find({})
+    current_year = datetime.now().year
+    cursor = images_collection.find({"Date": {"$regex": f"^{current_year}-"}})
 
     # Process data to calculate monthly percentage
     for document in cursor:

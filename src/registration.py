@@ -21,11 +21,20 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 @app.post("/register/")
-async def register(user_name: str, password: str, type: str):
+async def register(user_name: str, password: str, type: str, token: str = Depends(get_token_auth_header_owner)):
+    if len(user_name) <= 5:
+        raise HTTPException(status_code=400, detail="Username must be more than 5 characters")
+    
+    if len(password) <= 5:
+        raise HTTPException(status_code=400, detail="Password must be more than 5 characters")
+    
+    if not type in ['expert', 'owner']:
+        raise HTTPException(status_code=400, detail="Type must be one of the following values (expert, owner)")
+    
     existing_user = user_collection.find_one({"user_name": user_name})
 
     if existing_user:
-        return {"success": False, "data": {"user_id": None}}
+        raise HTTPException(status_code=400, detail="Username already exists")
 
     # Hash the password before saving
     hashed_password = hash_password(password)

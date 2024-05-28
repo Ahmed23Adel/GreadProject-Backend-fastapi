@@ -7,6 +7,19 @@ class TodayPics(BaseModel):
     percentage_diseased_after_mod: float
     mod_rate: int
 
+
+class LatestPics(BaseModel):
+    latest_date: str
+    count: int
+    percentage_diseased: float
+    percentage_diseased_after_mod: float
+    mod_rate: float
+
+
+class LatestPicsModel(BaseModel):
+    success: bool
+    data: LatestPics
+
 class TodayPicsModel(BaseModel):
     success: bool
     data: TodayPics
@@ -75,3 +88,18 @@ class DiseasesResponse(BaseModel):
 class DataResponseStatistics(BaseModel):
     success: bool
     data: DiseasesResponse
+
+
+class NewImage(BaseModel):
+    Image_Path: str
+    Location: str
+    Date: str
+    Time: str
+    Classification: list[int]
+    Confidence: list[float]
+    bbox: list[int]
+    Image_Class: int
+    Edited: int
+    Treated: int
+    Resized_Path: str
+    Annotated_Path: str
