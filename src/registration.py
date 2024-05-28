@@ -45,7 +45,7 @@ async def register(user_name: str, password: str, type: str):
 
 @app.get("/users/")  
 async def get_all_users(token: str = Depends(get_token_auth_header_owner)):
-    users = list(user_collection.find({}))
+    users = list(user_collection.find({}, {"password": 0}))  # Exclude the password field
     if not users:
         return {"success":False, "data": {"users": []}}
     
@@ -115,3 +115,25 @@ async def activate_user(user_id: str, activated: bool, token: str = Depends(get_
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"success": True, "data": {"user_id": user_id, "activated": activated}}
+
+
+@app.put("/reset_password/")
+def reset_password(username: str, new_password: str, token: str = Depends(get_token_auth_header_owner)):
+    existing_user = user_collection.find_one({"user_name": username})
+    
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Hash the new password before updating
+    hashed_password = hash_password(new_password)
+
+    # Update the user's password in the database
+    result = user_collection.update_one(
+        {"_id": existing_user["_id"]},
+        {"$set": {"password": hashed_password}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"success": True, "message": "Password reset successfully"}
