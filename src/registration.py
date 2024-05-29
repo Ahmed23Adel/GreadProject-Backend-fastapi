@@ -67,10 +67,11 @@ async def get_all_users(token: str = Depends(get_token_auth_header_owner)):
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.now() + expires_delta
-    print("data", data.get("user_type") )
+    print("data", data.get("user_id") )
     to_encode.update({
         "exp": expire.timestamp(),
-        "user_type": data.get("user_type")  
+        "user_type": data.get("user_type"),  
+        "user_id": str(data.get("user_id"))
     })
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")  
     return encoded_jwt
@@ -88,8 +89,9 @@ async def login(user_name: str, password: str):
         
         access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
         user_type = existing_user.get("type")
+        user_id = existing_user.get("_id")
         access_token = create_access_token(
-            data={"sub": user_name, 'user_type': user_type}, expires_delta=access_token_expires
+            data={"sub": user_name, 'user_type': user_type, 'user_id': user_id}, expires_delta=access_token_expires
         )
         return {
             "success": True,

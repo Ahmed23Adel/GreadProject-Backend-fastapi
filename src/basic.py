@@ -9,6 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt 
 from datetime import datetime, timedelta
 from jwt import PyJWTError
+from bson import ObjectId
 
 load_dotenv() 
 MONGO_CLIENT = os.environ.get('MONGO_CLIENT') 
@@ -55,6 +56,18 @@ print("Done building basics")
 
 security = HTTPBearer()
 
+
+def is_user_activated(user_collection, user_id: str) -> bool:
+    user_id_obj = ObjectId(user_id)
+    user = user_collection.find_one({"_id": user_id_obj})
+    print("user_id", user_id)
+    print("user: ",user)
+    if user:
+        print(user.get("activated", False))
+        return user.get("activated", False)
+    else:
+        return False
+    
 def get_token_auth_header_parent(expected_user_type: str):
     if expected_user_type == "expert":
         return get_token_auth_header_expert
@@ -71,6 +84,13 @@ def get_token_auth_header(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if datetime.now() > datetime.fromtimestamp(payload["exp"]):
             raise HTTPException(status_code=401, detail="Token has expired")
+        user_id = payload["user_id"]
+        print("get_token_auth_header user_id", user_id)
+        if not is_user_activated(user_collection ,user_id):
+            raise HTTPException(
+                status_code=401,
+                detail="User is not activated"
+            )
     except PyJWTError as e:
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -84,7 +104,15 @@ def get_token_auth_header_expert(
         user_type = payload["user_type"]
         if user_type != "expert":
             raise HTTPException(status_code=401, detail="Only expert can perform this operation")
+        user_id = payload["user_id"]
+        print("user_id", user_id)
+        if not is_user_activated(user_collection ,user_id):
+            raise HTTPException(
+                status_code=401,
+                detail="User is not activated"
+            )
         # Check expiration time
+        
         if datetime.now() > datetime.fromtimestamp(payload["exp"]):
             raise HTTPException(status_code=401, detail="Token has expired")
     except PyJWTError as e:
@@ -102,6 +130,15 @@ def get_token_auth_header_owner(
         user_type = payload["user_type"]
         if user_type != "owner":
             raise HTTPException(status_code=401, detail="Only owner can perform this operation")
+        user_id = payload["user_id"]
+
+        # Check if the user is activated
+        # Assuming you have a function `is_user_activated` to check if the user is activated
+        if not is_user_activated(user_collection ,user_id):
+            raise HTTPException(
+                status_code=401,
+                detail="User is not activated"
+            )
         # Check expiration time
         if datetime.now() > datetime.fromtimestamp(payload["exp"]):
             raise HTTPException(status_code=401, detail="Token has expired")
