@@ -26,12 +26,14 @@ class TodayPicsModel(BaseModel):
 
 
 class DatePics(BaseModel):
+    latest_date: str
     count: int
     percentage_diseased: float
     percentage_diseased_after_mod: float
-    mod_rate: int
-    EB_per: int
-    LB_per: int
+    mod_rate: float
+    EB_per: float
+    LB_per: float
+    
 
 class DatePicsModel(BaseModel):
     success: bool

@@ -1,24 +1,24 @@
-import pytest
-import httpx
-from unittest.mock import patch, MagicMock
-from fastapi import status
-import uuid
-import sys
-import os
-import random
+# import pytest
+# import httpx
+# from unittest.mock import patch, MagicMock
+# from fastapi import status
+# import uuid
+# import sys
+# import os
+# import random
 
-# Add the parent directory of 'src' to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# # Add the parent directory of 'src' to the Python path
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Now you can import declare_location_unhealthy
-from src.treatment import declare_location_unhealthy, delete_treatment_by_location
+# # Now you can import declare_location_unhealthy
+# from src.treatment import declare_location_unhealthy, delete_treatment_by_location
 
-# Mock data to be returned by the mocked database call
-mock_treatments = [
-    {"Disease": "Disease1", "Treatment": "Treatment1"},
-    {"Disease": "Disease2", "Treatment": "Treatment2"},
-    {"Disease": "Disease3", "Treatment": "Treatment3"},
-]
+# # Mock data to be returned by the mocked database call
+# mock_treatments = [
+#     {"Disease": "Disease1", "Treatment": "Treatment1"},
+#     {"Disease": "Disease2", "Treatment": "Treatment2"},
+#     {"Disease": "Disease3", "Treatment": "Treatment3"},
+# ]
 
 # # Mock function to replace the actual database call
 # def mock_find():
@@ -195,6 +195,6 @@ mock_treatments = [
 #     assert treatment_zone_2_after_update == new_treatment_for_zone_2
 #     print("Rolling back")
 #     delete_treatment_by_location(zone_name)
-if __name__ == "__main__":
-    # pytest.main()
-    pytest.main(['-v', '--html=report.html'])
+# if __name__ == "__main__":
+#     # pytest.main()
+#     pytest.main(['-v', '--html=report.html'])

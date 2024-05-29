@@ -5,8 +5,6 @@ from datetime import date, datetime
 from fastapi import Query
 import numpy as np
 from src.stasModels import (
-    TodayPics, 
-    TodayPicsModel,
     DatePics, 
     DatePicsModel,
     LocationHistory,
@@ -17,8 +15,7 @@ from src.stasModels import (
     LocationsResponse,
     DataResponseLocations,
     DataResponseStatistics,
-    LatestPicsModel,
-    LatestPics,
+    DiseasesResponse,
     NewImage
 )
 
@@ -60,52 +57,61 @@ def create_new_image(new_image: NewImage, token: str = Depends(get_token_auth_he
     else:
         raise HTTPException(status_code=500, detail="Failed to create image")
 
-@app.get("/latest_pics", status_code=status.HTTP_200_OK, response_model=LatestPicsModel)
-def get_latest_pics(token: str = Depends(get_token_auth_header)):
-    # Find the latest date in the images collection
-    latest_entry = images_collection.find_one(sort=[("Date", -1)])
-
-    if not latest_entry:
-        raise HTTPException(status_code=404, detail="No images found")
-
-    latest_date = latest_entry["Date"]
-    print("Latest Date", latest_date)
+def get_pics_stats_at_date(specific_date):
     # Count images with Image_Class 0 or 1
-    total_images = images_collection.count_documents({"Date": latest_date})
-    print("total_images",total_images)
-    count_diseased = images_collection.count_documents({"Date": latest_date, "Image_Class": {"$in": [0, 1]}})
+    total_images = images_collection.count_documents({"Date": specific_date})
+    count_diseased = images_collection.count_documents({"Date": specific_date, "Image_Class": {"$in": [0, 1]}})
     count_diseased_edited = images_collection.count_documents({
-        "Date": latest_date,
+        "Date": specific_date,
         "Image_Class": {"$in": [0, 1]},
         "Edited": 1
     })
+    count_diseased_EB = images_collection.count_documents({"Date": specific_date, "Image_Class": {"$in": [0]}})
+    count_diseased_LB = images_collection.count_documents({"Date": specific_date, "Image_Class": {"$in": [1]}})
+    
     if total_images != 0:
         # Calculate percentages
         percentage_diseased = (count_diseased / total_images) * 100
         percentage_edited = (count_diseased_edited / total_images) * 100
         mod_percentage = (count_diseased_edited / count_diseased) * 100 if count_diseased != 0 else 0
-        # print("count_diseased_edited", count_diseased_edited)
-        # print("count_diseased", count_diseased)
+        percentage_diseased_EB = (count_diseased_EB / total_images) * 100
+        percentage_diseased_LB = (count_diseased_LB / total_images) * 100
     else:
         percentage_diseased = 0
         percentage_edited = 0
         mod_percentage = 0
-
+        percentage_diseased_EB = 0
+        percentage_diseased_LB = 0
     # Create TodayPics instance
-    print(total_images, percentage_diseased, percentage_edited, mod_percentage)
-    latest_pics = LatestPics(
-        latest_date=str(latest_date),
+    date_str = datetime.strftime(specific_date, "%d-%m-%Y")
+    latest_pics = DatePics(
+        latest_date=date_str,
         count=total_images,
         percentage_diseased=f"{percentage_diseased:.2f}",
         percentage_diseased_after_mod=f"{percentage_edited:.2f}",
-        mod_rate=f"{mod_percentage:.2f}"
+        mod_rate=f"{mod_percentage:.2f}",
+        EB_per= percentage_diseased_EB,
+        LB_per = percentage_diseased_LB
     )
 
-    return LatestPicsModel(success=True, data=latest_pics)
+    return DatePicsModel(success=True, data=latest_pics)
+
+@app.get("/latest_pics", status_code=status.HTTP_200_OK, response_model=DatePicsModel)
+def get_latest_pics(token: str = Depends(get_token_auth_header)):
+    # Find the latest date in the images collection
+    latest_entry = images_collection.find_one(sort=[("Date", -1)])
+    print("latest_entry", latest_entry)
+    if not latest_entry:
+        raise HTTPException(status_code=404, detail="No images found")
+    latest_date_str = latest_entry["Date"]
+    # latest_date = datetime.strptime(latest_date_str, "%d-%m-%Y")
+    # formatted_latest_date = latest_date.strftime("%d-%m-%Y")
+    return get_pics_stats_at_date(latest_date_str)
+    
 
 def parse_date(date_str: str = Query(...)) -> date:
     try:
-        parsed_date = datetime.strptime(date_str, "%m/%d/%Y").date()
+        parsed_date = datetime.strptime(date_str, "%d-%m-%Y").date()
     except ValueError:
             raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -115,40 +121,12 @@ def parse_date(date_str: str = Query(...)) -> date:
 
 @app.get("/date_pics", status_code=status.HTTP_200_OK, response_model=DatePicsModel)
 def get_date_pics(token: str = Depends(get_token_auth_header), query_date: date = Depends(parse_date)):
-    query_date = query_date.strftime("%Y-%m-%d")
-    total_images = images_collection.count_documents({"Date": query_date})
-    count_diseased = images_collection.count_documents({"Date": query_date, "Image_Class": {"$in": [0, 1]}})
-    count_diseased_EB = images_collection.count_documents({"Date": query_date, "Image_Class": {"$in": [0]}})
-    count_diseased_LB = images_collection.count_documents({"Date": query_date, "Image_Class": {"$in": [1]}})
-    count_diseased_edited = images_collection.count_documents({
-        "Date": query_date,
-        "Image_Class": {"$in": [0, 1]},
-        "Edited": 1
-    })
-    if total_images != 0:
-        # Calculate percentages
-        percentage_diseased = (count_diseased / total_images) * 100
-        percentage_diseased_EB = (count_diseased_EB / total_images) * 100
-        percentage_diseased_LB = (count_diseased_LB / total_images) * 100
-        percentage_edited = (count_diseased_edited / total_images) * 100
-        mod_percentage = count_diseased_edited*100/count_diseased
-        
-    else:
-        percentage_diseased = 0
-        percentage_diseased_EB = 0
-        percentage_diseased_LB = 0
-        percentage_edited = 0
-        mod_percentage = 0
-        
-    date_pics = DatePics(
-        count=total_images,
-        percentage_diseased=percentage_diseased,
-        percentage_diseased_after_mod=percentage_edited,
-        mod_rate=mod_percentage,
-        EB_per = percentage_diseased_EB,
-        LB_per = percentage_diseased_LB,
-    )
-    return DatePicsModel(success=True, data=date_pics)
+    query_date = query_date.strftime("%d-%m-%Y")
+    query_date_obj = datetime.strptime(query_date, "%d-%m-%Y")
+    formatted_date_str = query_date_obj.strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
+    formatted_date_obj = datetime.strptime(formatted_date_str, "%Y-%m-%dT%H:%M:%S.%f+00:00")
+    print("formatted_date_obj", type(formatted_date_obj), formatted_date_obj)
+    return get_pics_stats_at_date(formatted_date_obj)
 
 
 @app.get("/disease_mons_percentage")
@@ -160,12 +138,20 @@ def get_disease_mons_percentage(token: str = Depends(get_token_auth_header),):
 
     # Query MongoDB collection
     current_year = datetime.now().year
-    cursor = images_collection.find({"Date": {"$regex": f"^{current_year}-"}})
+    start_of_year = datetime(current_year, 1, 1)
+    end_of_year = datetime(current_year, 12, 31)
+
+    cursor = images_collection.find({
+        "Date": {
+            "$gte": start_of_year,
+            "$lte": end_of_year
+        }
+    })
 
     # Process data to calculate monthly percentage
     for document in cursor:
-        date_string = document["Date"]
-        month_index = int(date_string.split("-")[1]) - 1
+        date = document["Date"]
+        month_index = date.month
         if document["Image_Class"] == 0:
             EB_data[month_index] += 1
         elif document["Image_Class"] == 1:
@@ -173,6 +159,8 @@ def get_disease_mons_percentage(token: str = Depends(get_token_auth_header),):
 
     # Calculate percentages
     total_images_per_month = [EB + LB for EB, LB in zip(EB_data, LB_data)]
+    print("total_images_per_month", total_images_per_month)
+    print("EB_data", EB_data)
     EB_percentage = [round((EB / total) * 100, 2) if total > 0 else 0 for EB, total in zip(EB_data, total_images_per_month)]
     LB_percentage = [round((LB / total) * 100, 2) if total > 0 else 0 for LB, total in zip(LB_data, total_images_per_month)]
 
@@ -194,16 +182,14 @@ def get_location_history(
     from_date: date = Depends(parse_date_from),
     to_date: date = Depends(parse_date_to),
 ):
-    # if from_date and to_date are 01/01/0001 then it should return the whole history
-    # Define static data for the response
-    try:
-        start_datetime = from_date.strftime("%Y-%m-%d")
-        end_datetime =  to_date.strftime("%Y-%m-%d")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    print(start_datetime)
-    print(end_datetime)
+    try:
+        # Convert dates to datetime objects
+        start_datetime = datetime.strptime(from_date.strftime("%d-%m-%Y"), "%d-%m-%Y") if from_date.year > 1 else datetime.min
+        end_datetime = datetime.strptime(to_date.strftime("%d-%m-%Y"), "%d-%m-%Y") if to_date.year > 1 else datetime.max
+        print("start_datetimelll", start_datetime, end_datetime)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use %d-%m-%Y.")
     # Query MongoDB for documents within the date range and specific location
     images = images_collection.find({
         "Date": {
@@ -212,13 +198,11 @@ def get_location_history(
         },
         "Location": location
     })
-
+    # print("imagesssss", [im['Date'] for im in images])
     # Convert ObjectId to string and return the documents
     result = []
     for image in images:
-        image_id = str(image["_id"])
         location = image.get("Location")
-        
         # First, try to get treatment by location
         if location:
             location_treatment = treatment_collection.find_one({"Location": location})
@@ -238,11 +222,12 @@ def get_location_history(
         mean_confidence = np.mean(confidences) if confidences else 0
 
         # Construct item data
+        date_str = datetime.strftime(image.get("Date", ""), "%d-%m-%Y")
         item_data = {
             "itemImageSrc": transform(image.get("Image_Path", "")),
             "thumbnailImageSrc": transform(image.get("Resized_Path", "")),
             "alt": f"{mean_confidence:.2f}%",
-            "title": image.get("Date", ""),
+            "title": date_str,
             "treatment": treatment
         }
         result.append(item_data)
@@ -256,6 +241,7 @@ def get_location_history(
 @app.get("/get-date-per-diseased-plants", status_code=status.HTTP_200_OK, response_model=DatePerDiseasedPlantsResponse)
 def get_date_per_diseased_plants(token: str = Depends(get_token_auth_header), location: str = Query(...)):
     unique_dates = list(images_collection.distinct("Date", {"Location": location}))
+    print("unique_dates", unique_dates)
     percentages = []
     for date in unique_dates:
         # Count total number of images for this date and location
@@ -268,7 +254,7 @@ def get_date_per_diseased_plants(token: str = Depends(get_token_auth_header), lo
         percentages.append(diseased_images*100/total_images)
     # Static data (sample data)
     static_data = {
-        "dates": unique_dates,
+        "dates": [datetime.strftime(date, "%d-%m-%Y") for date in unique_dates],
         "percentages": percentages
     }
 
@@ -290,7 +276,7 @@ def get_all_locations(token: str = Depends(get_token_auth_header)):
 def get_disease_statistics(token: str = Depends(get_token_auth_header), date: str = Query(...)):
     # Sample data for diseases and percentages (replace with your actual data retrieval logic)
 
-    try:
+    # try:
         fields_to_get = {
             "Image_Path": 1,
             "Location": 1,
@@ -299,20 +285,48 @@ def get_disease_statistics(token: str = Depends(get_token_auth_header), date: st
             "Confidence": 1,
             "_id": 1  
         }
-        input_date = datetime.strptime(date, "%d/%m/%Y").date()
+        date_obj = datetime.strptime(date, "%d-%m-%Y")
+        start_date = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
+        print("Start date:", start_date)
 
-        # Format the date into Year-Month-Day format
-        date_filter = input_date.strftime("%Y-%m-%d")
-        print(date_filter)
-        # Query to retrieve images by date
-        images = list(images_collection.find({"Date": str(date_filter)},fields_to_get))
-        images_EB = list(images_collection.find({"Date": str(date_filter), "Image_Class": 0}, fields_to_get))
-        images_LB = list(images_collection.find({"Date": str(date_filter), "Image_Class": 1}, fields_to_get))
-
+        # Calculate the end date by adding one day
+        end_date = start_date + timedelta(days=1)
+        print("End date:", end_date)
+        # start_datetimelll 1990-03-01 00:00:00 2024-06-01 00:00:00
+        # Query to retrieve images by date range
         
-        images_count = len(images)
-        EB_count = len(images_EB)
-        LB_count = len(images_LB)
+        images_count = images_collection.count_documents({
+            "Date": {
+                "$gte": start_date,
+                "$lte": end_date
+            },           
+            }
+        )
+
+        EB_count = images_collection.count_documents({
+            "Date": {
+                "$gte": start_date,
+                "$lte": end_date
+            },
+            "Image_Class": 0
+            
+            }
+        )
+        LB_count = images_collection.count_documents({
+            "Date": {
+                "$gte": start_date,
+                "$lte": end_date
+            },
+            "Image_Class": 1
+            
+            }
+        )
+        
+
+        print("images")
+        print(images_count)
+        print(EB_count)
+        print(LB_count)
         if images_count != 0 :
             EB_percentage = EB_count*100/images_count
             LB_percentage = LB_count*100/images_count
@@ -323,11 +337,10 @@ def get_disease_statistics(token: str = Depends(get_token_auth_header), date: st
         diseases = ["Early blight", "Late blight"]
 
         percentages =[int(EB_percentage),int(LB_percentage)]
-       
         # Return the response
         return DataResponseStatistics(success=True, data=DiseasesResponse(diseases=diseases, percentages=percentages))
-    except:
-        return DataResponseStatistics(success=False)
+    # except:
+    #     raise HTTPException(status_code=500, detail="Failed to create this statistics")
 
 
 

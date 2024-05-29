@@ -6,21 +6,21 @@ import re
 
 def parse_date_from(from_date: str = Query(...)) -> date:
     try:
-        parsed_date = datetime.strptime(from_date, "%d/%m/%Y").date()
+        parsed_date = datetime.strptime(from_date, "%d-%m-%Y").date()
     except ValueError:
             raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format. Please provide the date in MM/DD/YYYY format."
+            detail="Invalid date format. Please provide the date in d-m-Y format."
         )
     return parsed_date
 
 def parse_date_to(to_date: str = Query(...)) -> date:
     try:
-        parsed_date = datetime.strptime(to_date, "%d/%m/%Y").date()
+        parsed_date = datetime.strptime(to_date, "%d-%m-%Y").date()
     except ValueError:
             raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format. Please provide the date in MM/DD/YYYY format."
+            detail="Invalid date format. Please provide the date in d-m-Y format."
         )
     return parsed_date
 
