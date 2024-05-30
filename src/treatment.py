@@ -56,14 +56,31 @@ def accept_treated(location: str = Query(...), token: str = Depends(get_token_au
     return SuccessResponse()
 
 
+# @app.get("/get-diseased-locations", status_code=status.HTTP_200_OK)
+# def get_diseased_locations(token: str = Depends(get_token_auth_header)):
+#     # Your update logic here
+#     #diseaesName =  EB LB
+#     # TODO maake sure substituting image_class with treated is ok
+#     unique_locations = list(images_collection.distinct("Location", {"$and": [{"Treated": {"$in": [0]}}, {"Location": {"$exists": True}}]}))
+
+#     return {"success": True, "data": {"locations": unique_locations}}
+
 @app.get("/get-diseased-locations", status_code=status.HTTP_200_OK)
 def get_diseased_locations(token: str = Depends(get_token_auth_header)):
-    # Your update logic here
-    #diseaesName =  EB LB
-    # TODO maake sure substituting image_class with treated is ok
-    unique_locations = list(images_collection.distinct("Location", {"$and": [{"Treated": {"$in": [0]}}, {"Location": {"$exists": True}}]}))
+    # once the zone  gets diseased again it should make  Checked_By_Expert = false again
+    locations = list(location_collection.find({}, {"Zone_Name": 1, "Checked_By_Expert": 1, "_id": 0}))
+    # return locations
+    return {"success": True, "data": {"locations": locations}}
 
-    return {"success": True, "data": {"locations": unique_locations}}
+@app.post("/set-location-checked/", status_code=status.HTTP_200_OK)
+def set_location_checked(location_name: str, token: str = Depends(get_token_auth_header_expert)):
+    result = location_collection.update_one(
+        {"Zone_Name": location_name},
+        {"$set": {"Checked_By_Expert": True}}
+    )
+
+    # Return a success response
+    return {"success": True, "message": f"Location '{location_name}' Checked_By_Expert set to True"}
 
 @app.get("/get-all-locations", status_code=status.HTTP_200_OK)
 def get_all_locations(token: str = Depends(get_token_auth_header)):
