@@ -29,9 +29,10 @@ treatment_collection = None
 reports_collection = None
 user_collection = None
 location_collection = None
+zonesTreatmentScheduling_collection = None
 
 def connect_to_db():
-    global client, db, images_collection, treatment_collection, reports_collection, user_collection, location_collection
+    global client, db, images_collection, treatment_collection, reports_collection, user_collection, location_collection, zonesTreatmentScheduling_collection
     if client is None:
         import certifi
         ca = certifi.where()
@@ -42,6 +43,7 @@ def connect_to_db():
         reports_collection = db['reports']  
         user_collection = db["users"]
         location_collection = db['location']
+        zonesTreatmentScheduling_collection = db["zonesTreatmentScheduling"]
 
 connect_to_db()
 

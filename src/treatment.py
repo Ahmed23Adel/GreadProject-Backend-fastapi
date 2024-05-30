@@ -189,3 +189,57 @@ def delete_treatment_by_location(location: str):
         return {"success": True, "message": "Document deleted successfully"}
     else:
         raise HTTPException(status_code=404, detail="Document not found for the specified location")
+    
+
+
+
+@app.post("/schedule-zones", status_code=status.HTTP_201_CREATED)
+def schedule_zones(start_date: str, end_date: str, zone_name: str, token: str = Depends(get_token_auth_header_expert)):
+    start_date = datetime.strptime(start_date, "%d-%m-%Y")
+    end_date = datetime.strptime(end_date, "%d-%m-%Y")
+
+    # Check if end date is greater than or equal to start date
+    if end_date < start_date:
+        raise HTTPException(status_code=400, detail="End date must be greater than or equal to start date")
+
+    # Iterate through each day between start_date and end_date
+    current_date = start_date
+    while current_date <= end_date:
+        # Format the current_date in the required format for MongoDB
+        formatted_date = current_date.strftime("%Y-%m-%dT00:00:00.000+00:00")
+        
+        # Create the document to be inserted into the collection
+        schedule_data = {
+            "Zone_Name": zone_name,
+            "Date_Scheduled": formatted_date,
+            "Done": False
+        }
+
+        # Insert the document into the collection
+        zonesTreatmentScheduling_collection.insert_one(schedule_data)
+
+        # Move to the next day
+        current_date += timedelta(days=1)
+        print("formatted_date", formatted_date)
+
+    return {"success": True, "data": {}}
+
+
+
+@app.get("/zone-scheduled", status_code=status.HTTP_200_OK)
+def check_scheduled(location: str, token: str = Depends(get_token_auth_header)):
+    entries = list(zonesTreatmentScheduling_collection.find({"Zone_Name": location}, {"Date_Scheduled": 1, "Done": 1, "Farmer_Finished": 1, "_id": 0}))
+    formatted_entries = []
+    for entry in entries:
+        date_scheduled = datetime.strptime(str(entry["Date_Scheduled"]), "%Y-%m-%d %H:%M:%S").strftime("%d-%m-%Y")
+        # Retrieve the username from the user collection based on the Farmer_Finished id
+        farmer_finished_id = entry.get("Farmer_Finished", "")
+        if farmer_finished_id:
+            user_id_obj = ObjectId(farmer_finished_id)
+            user = user_collection.find_one({"_id": user_id_obj}, {"user_name": 1})
+            username = user.get("user_name", "") if user else ""
+        else:
+            username = ""
+        formatted_entries.append({"Date_Scheduled": date_scheduled, "Done": entry["Done"], "Farmer_Finished": username})
+    
+    return {"success": True, "data": {"schedule": formatted_entries}} 
