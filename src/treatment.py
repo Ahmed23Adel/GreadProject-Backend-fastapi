@@ -72,6 +72,39 @@ def get_diseased_locations(token: str = Depends(get_token_auth_header)):
     # return locations
     return {"success": True, "data": {"locations": locations}}
 
+@app.get("/diseased-zones", status_code=status.HTTP_200_OK)
+def get_diseased_zones(token: str = Depends(get_token_auth_header)):
+    # Find all zones with Diseased=true
+    diseased_zones = list(location_collection.find({"Diseased": True}))
+
+    results = []
+
+    for zone in diseased_zones:
+        zone_name = zone["Zone_Name"]
+        specific_treatment = zone.get("Specific_Treatment")
+        current_disease = zone.get("Current_Disease")
+        is_zone_checked_by_expert = zone.get("Checked_By_Expert")
+        _id = zone.get("_id")
+        # Determine the treatment to use
+        if specific_treatment:
+            treatment = specific_treatment
+        else:
+            # Look up the default treatment for the disease
+            disease_info = treatment_collection.find_one({"Disease": current_disease})
+            if disease_info:
+                treatment = disease_info.get("Treatment")
+            else:
+                treatment = "No treatment available"
+
+        results.append({
+            "_id": _id,
+            "Zone_Name": zone_name,
+            "Treatment": treatment,
+            "Checked_By_Expert": is_zone_checked_by_expert
+        })
+
+    return {"success": True, "data": {"locations": results}}
+
 @app.post("/set-location-checked/", status_code=status.HTTP_200_OK)
 def set_location_checked(location_name: str, token: str = Depends(get_token_auth_header_expert)):
     result = location_collection.update_one(
