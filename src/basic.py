@@ -122,6 +122,31 @@ def get_token_auth_header_expert(
     except PyJWTError as e:
         raise HTTPException(status_code=401, detail="Invalid token")
     
+    
+
+def get_token_auth_header_farmer(
+    credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_type = payload["user_type"]
+        if user_type != "farmer":
+            raise HTTPException(status_code=401, detail="Only farmers can perform this operation")
+        user_id = payload["user_id"]
+        if not is_user_activated(user_collection ,user_id):
+            raise HTTPException(
+                status_code=401,
+                detail="User is not activated"
+            )
+        # Check expiration time
+        
+        if datetime.now() > datetime.fromtimestamp(payload["exp"]):
+            raise HTTPException(status_code=401, detail="Token has expired")
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
 
 
 def get_token_auth_header_owner(

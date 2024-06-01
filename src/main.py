@@ -14,3 +14,4 @@ print("IN main")
 from src.registration import *
 from src.stats import *
 from src.treatment import *
+from src.farmer import *
