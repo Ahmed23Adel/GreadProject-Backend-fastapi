@@ -3,6 +3,7 @@ from src.basic import *
 from fastapi import Query
 from src.treatmentModels import (
     SuccessResponse,
+    UpdateTreatmentRequest
 )
 
 
@@ -259,12 +260,21 @@ def schedule_zones(start_date: str, end_date: str, zone_name: str, token: str = 
 
 
 
+from pymongo import DESCENDING  # Import DESCENDING for sorting in descending order
+
 @app.get("/zone-scheduled", status_code=status.HTTP_200_OK)
 def check_scheduled(location: str, token: str = Depends(get_token_auth_header)):
-    entries = list(zonesTreatmentScheduling_collection.find({"Zone_Name": location}, {"Date_Scheduled": 1, "Done": 1, "Farmer_Finished": 1, "_id": 0}))
+    # Retrieve entries from the database
+    entries = list(zonesTreatmentScheduling_collection.find(
+        {"Zone_Name": location},
+        {"Date_Scheduled": 1, "Done": 1, "Farmer_Finished": 1, "_id": 0}
+    ).sort("Date_Scheduled", DESCENDING))  # Sort by Date_Scheduled in descending order
+
+    # Format the entries
     formatted_entries = []
     for entry in entries:
         date_scheduled = datetime.strptime(str(entry["Date_Scheduled"]), "%Y-%m-%d %H:%M:%S").strftime("%d-%m-%Y")
+        
         # Retrieve the username from the user collection based on the Farmer_Finished id
         farmer_finished_id = entry.get("Farmer_Finished", "")
         if farmer_finished_id:
@@ -273,6 +283,27 @@ def check_scheduled(location: str, token: str = Depends(get_token_auth_header)):
             username = user.get("user_name", "") if user else ""
         else:
             username = ""
+        
         formatted_entries.append({"Date_Scheduled": date_scheduled, "Done": entry["Done"], "Farmer_Finished": username})
     
-    return {"success": True, "data": {"schedule": formatted_entries}} 
+    return {"success": True, "data": {"schedule": formatted_entries}}
+
+
+
+@app.put("/update-specific-treatment", status_code=200)
+def update_specific_treatment(zone_name: str, specific_treatment: str, token: str = Depends(get_token_auth_header)):
+    try:
+        # Find the document by zone_name
+        location_document = location_collection.find_one({"Zone_Name": zone_name})
+        if not location_document:
+            raise HTTPException(status_code=404, detail="Zone not found")
+
+        # Update the Specific_Treatment field
+        location_collection.update_one(
+            {"Zone_Name": zone_name},
+            {"$set": {"Specific_Treatment": specific_treatment}}
+        )
+
+        return {"success": True, "data": {"message": "Specific Treatment updated successfully"}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
