@@ -12,6 +12,7 @@ from src.basic import *
 print("IN main")
 # regApp = app
 from src.registration import *
-from src.stats import *
-from src.treatment import *
-from src.farmer import *
+# from src.stats import *
+# from src.treatment import *
+# from src.farmer import *
+from src.zones import *

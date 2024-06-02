@@ -7,9 +7,10 @@ from fastapi import Depends, Header, HTTPException
 from datetime import date
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt 
-from datetime import datetime, timedelta
+from datetime import datetime
 from jwt import PyJWTError
 from bson import ObjectId
+from fastapi import FastAPI, APIRouter, Depends, HTTPException
 
 load_dotenv() 
 MONGO_CLIENT = os.environ.get('MONGO_CLIENT') 
@@ -30,9 +31,11 @@ reports_collection = None
 user_collection = None
 location_collection = None
 zonesTreatmentScheduling_collection = None
-
+zones_collection = None
 def connect_to_db():
     global client, db, images_collection, treatment_collection, reports_collection, user_collection, location_collection, zonesTreatmentScheduling_collection
+    global zones_collection
+
     if client is None:
         import certifi
         ca = certifi.where()
@@ -41,13 +44,16 @@ def connect_to_db():
         images_collection = db['images']  
         treatment_collection = db['treatment']  
         reports_collection = db['reports']  
-        user_collection = db["users"]
+        user_collection = db["OrgUsers"]
         location_collection = db['location']
         zonesTreatmentScheduling_collection = db["zonesTreatmentScheduling"]
+        zones_collection = db["Zone"]
 
 connect_to_db()
 
 app = FastAPI()
+v1 = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins
@@ -60,11 +66,24 @@ print("Done building basics")
 
 security = HTTPBearer()
 
+app.mount("/api/v1", v1)
+# app.mount("/api/v2", v2)
 
 def is_user_activated(user_collection, user_id: str) -> bool:
+    print("ccc")
+    if user_collection is None:
+        print("User collection is not connected")
+        return False
+    
+    # Fetch a sample document to test connection
+    sample_user = user_collection.find_one()
+    if sample_user is None:
+        print("No documents found in the user collection")
+        return False
+    print("Sample user", sample_user)
     user_id_obj = ObjectId(user_id)
     user = user_collection.find_one({"_id": user_id_obj})
-    print("user_id", user_id)
+    print("is_user_activated:: user_id", user_id)
     print("user: ",user)
     if user:
         print(user.get("activated", False))
@@ -156,6 +175,7 @@ def get_token_auth_header_owner(
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        
         user_type = payload["user_type"]
         if user_type != "owner":
             raise HTTPException(status_code=401, detail="Only owner can perform this operation")
