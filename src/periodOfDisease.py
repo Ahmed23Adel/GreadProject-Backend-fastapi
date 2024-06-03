@@ -4,6 +4,8 @@ from fastapi import Query
 from src.periodOfDiseaseModels import(
     PeriodOfDiseaseImage,
 )
+from datetime import datetime, timedelta
+
 
 @v1.post("/create_period_of_disease", response_model=dict)
 async def create_period_of_disease(
@@ -51,7 +53,7 @@ async def set_zone_checked(
             raise HTTPException(status_code=404, detail="Period of disease not found")
         
         # Update the period of disease document
-        current_date =  datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         period_of_disease_collection.update_one(
             {"_id": ObjectId(period_of_disease_id)},
             {
@@ -62,6 +64,74 @@ async def set_zone_checked(
             }
         )
 
-        return {"success": True, "message": "Zone checked successfully"}
+        # Retrieve specificTreatmentId from the period of disease document
+        specific_treatment_id = period_of_disease.get("specificTreatmentId")
+        # print("specific_treatment_id,", specific_treatment_id)
+        # If specificTreatmentId exists and is not empty, fetch the treatment schedule
+        if specific_treatment_id:
+            treatment_schedule_items = saved_treatment_schedule_itmes_collection.find({"treatmentId": ObjectId(specific_treatment_id)})
+            # print("in if", specific_treatment_id, list(treatment_schedule_items))
+        else:
+            print("in else")
+            # If specificTreatmentId is not present, fetch the currentDisease
+            current_disease = period_of_disease.get("currentDisease")
+            if not current_disease:
+                raise HTTPException(status_code=404, detail="Current disease not found in period of disease")
+            
+            # Look up the default treatment in the disease collection
+            disease = disease_collection.find_one({"diseaseName": current_disease})
+            if not disease or "defaultSavedTreatment" not in disease:
+                raise HTTPException(status_code=404, detail="Default treatment not found for the disease")
+            
+            default_treatment_id = disease["defaultSavedTreatment"]
+            treatment_schedule_items = saved_treatment_schedule_itmes_collection.find({"treatmentId": default_treatment_id})
+
+        # Create new entries in TreatmentSchedule for each day in the treatment schedule
+        # print("treatment_schedule_items", list(treatment_schedule_items))
+        for item in treatment_schedule_items:
+            day_num = int(item["dayNumber"])
+            treatment_date = current_date + timedelta(days=day_num)
+            treatment_desc = item["dayTreatment"]
+
+            new_treatment_schedule = {
+                "periodOfTreatment": period_of_disease_id,
+                "treatmentDate": treatment_date,
+                "treatmentDesc": treatment_desc,
+                "treatmentDone": False,
+                "treatmentDoneBy": None
+            }
+            print("new_treatment_schedule", new_treatment_schedule)
+            treatment_schedule_collection.insert_one(new_treatment_schedule)
+
+        return {"success": True, "message": "Zone checked and treatment schedule created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
+@v1.put("/set-period-of-disease-specific-treatment", response_model=dict)
+async def set_period_of_disease_specific_treatment(
+    period_of_disease_id: str,
+    treatment_id: str,
+    token: str = Depends(get_token_auth_header_expert)):
+    try:
+        # Validate and convert the period_of_disease_id and treatment_id to ObjectId
+        period_of_disease_id = ObjectId(period_of_disease_id)
+
+        # Fetch the period of disease document
+        period_of_disease = period_of_disease_collection.find_one({"_id": period_of_disease_id})
+        if not period_of_disease:
+            raise HTTPException(status_code=404, detail="Period of disease not found")
+
+        # Update the period of disease document with the new specific treatment ID
+        period_of_disease_collection.update_one(
+            {"_id": period_of_disease_id},
+            {
+                "$set": {
+                    "specificTreatmentId": treatment_id
+                }
+            }
+        )
+
+        return {"success": True, "message": "Specific treatment ID updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -20,3 +20,4 @@ from src.savedTreatment import *
 from src.movingCar import *
 from src.periodOfDisease import *
 from src.images import *
+from src.treatmentSchedule import *

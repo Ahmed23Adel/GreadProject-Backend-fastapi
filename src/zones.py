@@ -32,7 +32,7 @@ async def get_open_zones(token: str = Depends(get_token_auth_header)):
         zones_list = []
         for zone in open_zones:
             # Determine isLocationNewForExpert by checking if approverExpertId exists in period_of_disease_collection
-            curr_period = period_of_disease_collection.find_one({"zoneId": zone["_id"], "dateEnded": None}, {"approverExpertId": 1, "specificTreatmentId": "", "currentDisease": 1})
+            curr_period = period_of_disease_collection.find_one({"zoneId": zone["_id"], "dateEnded": None}, {"approverExpertId": 1, "specificTreatmentId": 1, "currentDisease": 1})
             # is_location_new = false
             # print("curr_period", curr_period)
             is_location_new = True
@@ -47,16 +47,14 @@ async def get_open_zones(token: str = Depends(get_token_auth_header)):
                 print("last try")
             except:
                 is_location_new = True
-            print("is_location_new", is_location_new)
+            # print("is_location_new", is_location_new)
             # Determine zonesTreatment
-            print("curr_period", curr_period)
-            specific_treatment_id = curr_period['specificTreatmentId']
-            print("specific_treatment_id", specific_treatment_id)
-            if specific_treatment_id:
-                # If specificTreatmentId exists, fetch treatment description from treatment collection
+            try:
+                specific_treatment_id = curr_period['specificTreatmentId']
+                print("There is specific_treatment_id")
                 treatment_description = get_treatment_description(specific_treatment_id)
-            else:
-                # If specificTreatmentId is not set, fetch defaultSavedTreatment description from disease collection
+                print("treatment_description", treatment_description)
+            except:
                 current_disease = curr_period.get("currentDisease")
                 print("current_disease", current_disease)
                 treatment_description = get_default_treatment_description(current_disease)
@@ -76,9 +74,10 @@ async def get_open_zones(token: str = Depends(get_token_auth_header)):
 def get_treatment_description(treatment_id: str):
     # Connect to your MongoDB database and collection
     # Implement logic to fetch treatment description from treatment collection using treatment_id
-    treatment = treatment_collection.find_one({"_id": ObjectId(treatment_id)})
+    print("in get_treatment_description", treatment_id)
+    treatment = saved_treatment_schedule_collection.find_one({"_id": ObjectId(treatment_id)})
     if treatment:
-        return treatment.get("description", "")
+        return treatment.get("treatmentDescription", "")
     else:
         return ""
 
