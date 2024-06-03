@@ -10,7 +10,9 @@ from datetime import datetime, timezone
 from src.registrationModels import (
     RegisterResponse,
     LoginResponse,
-    ActivateUserResponse
+    ActivateUserResponse,
+    UsersResponse,
+    UserData
 )
  
 print("Intializing Registration endpoints...")
@@ -149,3 +151,24 @@ def reset_password(username: str, new_password: str, token: str = Depends(get_to
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"success": True, "message": "Password reset successfully"}
+
+
+@v1.get("/users")
+async def get_users( token: str = Depends(get_token_auth_header_owner)):
+    try:
+        # Query the database to retrieve users data
+        users_data = []
+        users = user_collection.find({})
+
+        for user in users:
+            user_data = {
+                "_id": str(user.get("_id")),
+                "user_name": user.get("user_name"),
+                "activated": user.get("activated"),
+                "type": user.get("type")
+            }
+            users_data.append(user_data)
+
+        return {"success": True, "data": {"users": users_data}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

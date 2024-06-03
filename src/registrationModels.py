@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class UserData(BaseModel):
     user_id: str
@@ -61,3 +62,12 @@ class ActivateUserResponse(BaseModel):
                 }
             }
         }
+
+class UserData(BaseModel):
+    _id: str
+    user_name: str
+    activated: bool
+    type: str
+
+class UsersResponse(BaseModel):
+    users: List[UserData]

@@ -4,74 +4,87 @@ from fastapi import status, HTTPException, Depends
 from datetime import date, datetime
 from fastapi import Query
 import numpy as np
+from datetime import datetime, timedelta
 
 
-@app.get("/get-todays-treatments", status_code=status.HTTP_200_OK)
+@v1.get("/get-todays-treatments", status_code=status.HTTP_200_OK)
 def get_todays_treatments(token: str = Depends(get_token_auth_header_farmer)):
-    # Get today's date in the required format
-    # Get zones look in locatoins collection if not then check default in treatmetn 
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow_start = today_start + timedelta(days=1)
+    try:
+        # Get today's date in the required format
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_start = today_start + timedelta(days=1)
 
-    print("today_start", today_start)  # Debug print
-    print("tomorrow_start", tomorrow_start)  # Debug print
+        # Find documents in treatment_schedule_collection where treatmentDate is today and treatmentDone is false
+        today_entries_cursor = treatment_schedule_collection.find({
+            "treatmentDate": {"$gte": today_start, "$lt": tomorrow_start},
+            "treatmentDone": False
+        })
 
-    # Find documents in zonesTreatmentScheduling_collection where Date_Scheduled is today and Done is false
-    today_entries_cursor = zonesTreatmentScheduling_collection.find({
-        "Date_Scheduled": {"$gte": today_start, "$lt": tomorrow_start},
-        "Done": False
-    })
-    
-    today_entries = list(today_entries_cursor)  # Convert cursor to list to print and iterate over it
-    print("today_entries", today_entries)  # Debug print to check the entries
-    
-    results = []
+        today_entries = list(today_entries_cursor)  # Convert cursor to list to print and iterate over it
 
-    for entry in today_entries:
-        zone_name = entry["Zone_Name"]
-        id = entry["_id"]
-        print("zone_name", zone_name)
-        # Fetch the corresponding location document
-        # Locatoin might have a specfic treatment for this locatoin 
-        location_doc = location_collection.find_one({"Zone_Name": zone_name})
+        results = []
 
-        if location_doc:
-            treatment = location_doc.get("Specific_Treatment", "")
-            print("treatment", treatment)
-            if not treatment:
-                # If Specific_Treatment is not available, get the Current_Disease
-                # Locatoin does have treatment, so go just take current disease and search in treatment collection
-                current_disease = location_doc.get("Current_Disease", "")
-                if current_disease:
-                    # Fetch the treatment from treatment_collection using Current_Disease
-                    treatment_doc = treatment_collection.find_one({"Disease": current_disease})
-                    treatment = treatment_doc.get("Treatment", "") if treatment_doc else ""
+        for entry in today_entries:
+            period_of_treatment_id = entry.get("periodOfTreatment")
+            id = str(entry.get("_id"))
 
-            # Append the result
-            results.append({
-                "id": id,
-                "Zone_Name": zone_name,
-                "Treatment": treatment
-            })
+            if period_of_treatment_id:
+                # Fetch the corresponding period of treatment document
+                period_of_treatment_doc = period_of_disease_collection.find_one({"_id": ObjectId(period_of_treatment_id)})
 
-    return {"success": True, "data": results}
+                if period_of_treatment_doc:
+                    zone_id = period_of_treatment_doc.get("zoneId")
+                    if zone_id:
+                        # Fetch the corresponding zone document
+                        zone_doc = zones_collection.find_one({"_id": zone_id})
+
+                        if zone_doc:
+                            zone_name = zone_doc.get("zoneName")
+                            treatment = zone_doc.get("specificTreatmentId", "")
+
+                            if not treatment:
+                                # If Specific_Treatment is not available, get the Current_Disease
+                                current_disease = zone_doc.get("currentDisease", "")
+                                if current_disease:
+                                    # Fetch the treatment from treatment_collection using Current_Disease
+                                    treatment_doc = treatment_collection.find_one({"Disease": current_disease})
+                                    treatment = treatment_doc.get("Treatment", "")
+                            print("entry", entry)
+                            # Append the result
+                            results.append({
+                                "id": id,
+                                "Zone_Name": zone_name,
+                                "Treatment": entry["treatmentDesc"]
+                            })
+
+        return {"success": True, "data": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 from bson.objectid import ObjectId
 from fastapi import HTTPException
 from pymongo import ReturnDocument
 
-@app.put("/update_scheduling_done", status_code=status.HTTP_200_OK)
-def update_scheduling_done(scheduling_id: str, token: str = Depends(get_token_auth_header_farmer)):
+@v1.put("/update_scheduling_done", status_code=status.HTTP_200_OK)
+def update_scheduling_done(scheduling_id: str, user_id: str, token: str = Depends(get_token_auth_header_farmer)):
     try:
         # Convert the scheduling_id to ObjectId
         scheduling_object_id = ObjectId(scheduling_id)
     except:
         raise HTTPException(status_code=400, detail="Invalid scheduling ID format")
-    print("scheduling_object_id", scheduling_object_id)
-    # Find the document by its ID and update the Done field to True
-    scheduling_document = zonesTreatmentScheduling_collection.find_one_and_update(
-        {"_id": str(scheduling_object_id)},
-        {"$set": {"Done": True}},
+
+    try:
+        # Convert the user_id to ObjectId
+        user_object_id = ObjectId(user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    # Find the document by its ID and update the Done field to True and treatmentDoneBy to user_id
+    scheduling_document = treatment_schedule_collection.find_one_and_update(
+        {"_id": scheduling_object_id},
+        {"$set": {"treatmentDone": True, "treatmentDoneBy": str(user_object_id)}},
         return_document=ReturnDocument.AFTER
     )
 
@@ -79,5 +92,6 @@ def update_scheduling_done(scheduling_id: str, token: str = Depends(get_token_au
         raise HTTPException(status_code=404, detail="Scheduling document not found")
 
     return {"success": True, "message": "Scheduling updated successfully"}
+
 
 
