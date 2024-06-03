@@ -8,3 +8,15 @@ class ZoneData(BaseModel):
 class ZoneResponse(BaseModel):
     success: bool
     data: List[ZoneData]
+    
+    
+class Zone(BaseModel):
+    id: str
+    zoneName: str
+    activePeriodOfDisease: str
+    isLocationNewForExpert: bool
+    zonesTreatment: str
+
+class ZoneResponse(BaseModel):
+    success: bool
+    data: dict

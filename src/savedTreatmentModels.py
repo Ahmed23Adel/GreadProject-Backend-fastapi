@@ -60,6 +60,7 @@ class SavedTreatmentScheduleItem(BaseModel):
 
 class SavedTreatmentScheduleRequest(BaseModel):
     treatmentName: str
+    description: str
     scheduleItems: List[SavedTreatmentScheduleItem]
 
 class SavedTreatmentScheduleItemResponse(BaseModel):
@@ -71,7 +72,7 @@ class SavedTreatmentScheduleItemResponse(BaseModel):
 ## Response
 class SavedTreatmentScheduleResponse(BaseModel):
     success: bool
-    data: List[dict]
+    data: dict
 
     class Config:
         schema_extra = {
@@ -80,3 +81,9 @@ class SavedTreatmentScheduleResponse(BaseModel):
                 "data": {}
             }
         }
+        
+        
+class SavedTreatmentScheduleItemResponse(BaseModel):
+    treatmentId: str
+    dayNumber: str
+    treatmentName: str

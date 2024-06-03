@@ -54,7 +54,6 @@ class LocationHistory(BaseModel):
     thumbnailImageSrc: str
     alt: str
     title: str
-    treatment: str
     
 
 class LocationHistoryList(BaseModel):

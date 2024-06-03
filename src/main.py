@@ -13,6 +13,10 @@ print("IN main")
 # regApp = app
 from src.registration import *
 # from src.stats import *
-# from src.treatment import *
+from src.treatment import *
 # from src.farmer import *
 from src.zones import *
+from src.savedTreatment import * 
+from src.movingCar import *
+from src.periodOfDisease import *
+from src.images import *
