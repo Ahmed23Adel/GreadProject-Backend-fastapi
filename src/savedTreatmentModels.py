@@ -1,89 +1,26 @@
-from pydantic import BaseModel
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import date
 from pydantic import BaseModel
 from typing import List
 
-class TreatmentCreateResponse(BaseModel):
-    success: bool
-    data: dict
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "success": True,
-                "data": {
-                    
-                }
-            }
-        }
-
-
-class TreatmentScheduleCreateData(BaseModel):
-    treatment_schedule_id: str
-    treatmentId: str
-    treatmentDate: str
-    treatmentDesc: str
-    treatmentDone: bool
-    treatmentDoneBy: str
-
-class TreatmentScheduleCreateResponse(BaseModel):
-    success: bool
-    data: dict
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "success": True,
-                "data": [
-                  
-                ]
-            }
-        }
-
-
-
-class TreatmentScheduleItem(BaseModel):
-    treatmentDate: str
-    treatmentDesc: str
-
-class TreatmentSchedulesRequest(BaseModel):
-    treatmentId: str
-    treatments: List[TreatmentScheduleItem]
-
 
 ################################################################
-class SavedTreatmentScheduleItem(BaseModel):
+class SavedTreatmentScheduleItemRequest(BaseModel):
     dayNumber: int
-    dayTreatment: str
+    dayTreatment: str = Field(..., min_length=3, max_length=200)
 
 class SavedTreatmentScheduleRequest(BaseModel):
-    treatmentName: str
-    description: str
-    scheduleItems: List[SavedTreatmentScheduleItem]
-
-class SavedTreatmentScheduleItemResponse(BaseModel):
-    treatment_schedule_item_id: str
-    treatmentId: str
-    dayNumber: str
-    dayTreatment: str
+    treatmentName: str = Field(..., min_length=3, max_length=200)
+    treatmentDescription: str = Field(..., min_length=3, max_length=200)
+    treatmentItems: List[SavedTreatmentScheduleItemRequest]
     
-## Response
+    @validator('treatmentItems')
+    def check_treatment_items_length(cls, v):
+        if len(v) < 1:
+            raise ValueError('There must be at least one schedule item')
+        return v
+
 class SavedTreatmentScheduleResponse(BaseModel):
     success: bool
     data: dict
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "success": True,
-                "data": {}
-            }
-        }
-        
-        
-class SavedTreatmentScheduleItemResponse(BaseModel):
-    treatmentId: str
-    dayNumber: str
-    treatmentName: str
