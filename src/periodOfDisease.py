@@ -37,6 +37,24 @@ async def create_period_of_disease(
         raise HTTPException(status_code=500, detail=str(e))
     
     
+@v1.delete("/reject_period_of_disease/{period_of_disease_id}", response_model=dict)
+async def reject_period_of_disease(period_of_disease_id: str, token: str = Depends(get_token_auth_header)):
+    try:
+        # Check if the period of disease exists
+        existing_period_of_disease = period_of_disease_collection.find_one({"_id": ObjectId(period_of_disease_id)})
+        if existing_period_of_disease is None:
+            raise HTTPException(status_code=404, detail="Period of disease not found")
+
+        # Delete the period of disease
+        period_of_disease_collection.delete_one({"_id": ObjectId(period_of_disease_id)})
+
+        return {"success": True, "data": {}}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
     
 from datetime import datetime
 

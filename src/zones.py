@@ -3,6 +3,9 @@ from src.basic import *
 from fastapi import Query
 from src.zonesModels import ZoneResponse
 from typing import List
+from src.zonesModels import (
+    NewZoneRequest
+)
 
 print("Intializing zones")
 BASE_URL = "zones"
@@ -16,6 +19,46 @@ def get_all_zones(token: str = Depends(get_token_auth_header)):
     zones = [{"zoneId": str(zone["_id"]), "name": zone["zoneName"]} for zone in zones]
     return {"success": True, "data": zones}
 
+   
+@v1.post("/create-new-zone", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_new_zone(zone_data: NewZoneRequest, token: str = Depends(get_token_auth_header_hardware)):
+    try:
+        # Check if the zone name already exists
+        existing_zone = zones_collection.find_one({"zoneName": zone_data.zone_name})
+        if existing_zone:
+            raise HTTPException(status_code=400, detail="Zone name already exists")
+
+        # Extract the zone number from the zone name
+        zone_number = extract_zone_number(zone_data.zone_name)
+
+        # If zone number extraction failed, raise an exception
+        if zone_number is None:
+            raise HTTPException(status_code=400, detail="Invalid zone name format. Zone name must be in the format 'Zone x' where 'x' is an integer.")
+
+        # Insert the new zone into the database
+        new_zone = {
+            "zoneName": zone_data.zone_name
+        }
+        zones_collection.insert_one(new_zone)
+
+        return {"success": True, "data": {}}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+def extract_zone_number(zone_name: str) -> int:
+    try:
+        # Split the zone name by space and extract the last part
+        zone_name_parts = zone_name.split(" ")
+        if (not len(zone_name_parts) == 2): return None
+        if (not zone_name_parts[0] == "Zone"): return None
+        zone_number_str = zone_name.split(" ")[-1]
+        # Convert the extracted part to an integer
+        zone_number = int(zone_number_str)
+        return zone_number
+    except ValueError:
+        return None
     
 @v1.get("/get-diseased-zones", response_model=ZoneResponse)
 async def get_open_zones(token: str = Depends(get_token_auth_header)):

@@ -20,3 +20,6 @@ class Zone(BaseModel):
 class ZoneResponse(BaseModel):
     success: bool
     data: dict
+
+class NewZoneRequest(BaseModel):
+    zone_name: str

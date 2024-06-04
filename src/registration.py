@@ -106,6 +106,33 @@ async def login(user_name: str, password: str, response_mode= LoginResponse):
         }
     else:
         raise HTTPException(status_code=401, detail="Incorrect password or username")
+    
+    
+@v1.get("/login-hardware/")
+async def login(user_name: str, password: str, response_mode= LoginResponse):
+    # Check if user exists in the database
+    existing_user = hardware_collection.find_one({"user_name": user_name})
+
+    if existing_user and verify_password(password, existing_user["password"]):
+        if not existing_user.get("activated", False):
+            raise HTTPException(status_code=403, detail="User is not activated")
+        
+        access_token_expires = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+        user_type = existing_user.get("type")
+        user_id = existing_user.get("_id")
+        access_token = create_access_token(
+            data={"sub": user_name, 'user_type': user_type, 'user_id': user_id}, expires_delta=access_token_expires
+        )
+        return {
+            "success": True,
+            "data": {
+                "user_type": user_type,
+                "user_id": str(existing_user.get("_id")),
+                "token": access_token,
+            },
+        }
+    else:
+        raise HTTPException(status_code=401, detail="Incorrect password or username")
 
 @v1.put("/activate_user/", response_model= ActivateUserResponse)
 async def activate_user(user_id: str, activated: bool, token: str = Depends(get_token_auth_header_owner)):

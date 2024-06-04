@@ -19,9 +19,9 @@ def delete_test_data():
 def get_token():
     # Static token values for expert, owner, and farmer
     return {
-        "ahmed": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhaG1lZCIsInVzZXJfdHlwZSI6ImV4cGVydCIsInVzZXJfaWQiOiI2NjVjOTk3YjIyZTdhMjM3M2QwMDhkZjgiLCJleHAiOjE3MTc1OTUxODAuMjQ4MDg4fQ.IUhhG-ZgEH2SfjBZabcGpylMiKIu6CudRLQg3U7Z0EM",
-        "adminowner": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbm93bmVyIiwidXNlcl90eXBlIjoib3duZXIiLCJ1c2VyX2lkIjoiNjY1Yzk4NmNkYjI1ZjljNzY5MTBlNjQwIiwiZXhwIjoxNzE3NTk3MjMyLjMyMDQwNX0.hRObjn2W34soIlaMM86mZYaJv4oHpIttxwaFWCdoAvA",
-        "usertmp1": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VydG1wMSIsInVzZXJfdHlwZSI6ImZhcm1lciIsInVzZXJfaWQiOiI2NjVkZjYwMDY1NTBlZjJlYTg0MmZmMWEiLCJleHAiOjE3MTc1OTcyMDMuOTMxOTA0fQ.uMdy_FHYPkVRfsd2FtPBXgwtON8rGyqipb4SAXtTpgc"
+        "ahmed": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhaG1lZCIsInVzZXJfdHlwZSI6ImV4cGVydCIsInVzZXJfaWQiOiI2NjVjOTk3YjIyZTdhMjM3M2QwMDhkZjgiLCJleHAiOjE3MTc2MjIwNzcuMzI2MjM2fQ.j5CvG5id8WRZUF-98k1URqF1KT4VPwMQVLYBJfzMchQ",
+        "adminowner": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbm93bmVyIiwidXNlcl90eXBlIjoib3duZXIiLCJ1c2VyX2lkIjoiNjY1Yzk4NmNkYjI1ZjljNzY5MTBlNjQwIiwiZXhwIjoxNzE3NjIyMDM5LjU5MDU1NH0.-gOPYKp_ejmF_DphlYaQY34_X9ga4AjGYEkNMunAhSY",
+        "usertmp1": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VydG1wMSIsInVzZXJfdHlwZSI6ImZhcm1lciIsInVzZXJfaWQiOiI2NjVkZjYwMDY1NTBlZjJlYTg0MmZmMWEiLCJleHAiOjE3MTc2MjIwNjEuMDExMDc0fQ.gCugWVUwPoYqAzUBDV9h14F9u5FqJAvpVHCF_9OQUgs"
     }
 
 @pytest.fixture
@@ -37,8 +37,8 @@ def test_create_saved_treatment_schedule_success(client, get_token):
 
     new_schedule = {
         "treatmentName": "Test Treatment",
-        "description": "Test Description",
-        "scheduleItems": [
+        "treatmentDescription": "Test Description",
+        "treatmentItems": [
             {"dayNumber": 1, "dayTreatment": "Treatment A"},
             {"dayNumber": 2, "dayTreatment": "Treatment B"}
         ]
@@ -52,6 +52,7 @@ def test_create_saved_treatment_schedule_success(client, get_token):
         )
 
     with allure.step("Asserting response status and content"):
+        print("response",response.content )
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] == True
         assert "data" in response.json()
@@ -67,16 +68,16 @@ def test_create_saved_treatment_schedule_duplicate_name(client, get_token):
 
     existing_schedule = {
         "treatmentName": "Duplicate Treatment",
-        "description": "Existing Description",
-        "scheduleItems": []
+        "treatmentDescription": "Existing Description",
+        "treatmentItems": []
     }
 
     saved_treatment_schedule_collection.insert_one(existing_schedule)
 
     new_schedule = {
         "treatmentName": "Duplicate Treatment",
-        "description": "New Description",
-        "scheduleItems": [
+        "treatmentDescription": "New Description",
+        "treatmentItems": [
             {"dayNumber": 1, "dayTreatment": "Treatment A"},
             {"dayNumber": 2, "dayTreatment": "Treatment B"}
         ]
@@ -104,7 +105,7 @@ def test_create_saved_treatment_schedule_missing_data(client, get_token):
 
     new_schedule = {
         "treatmentName": "Incomplete Treatment",
-        # Missing description and scheduleItems
+        # Missing description and treatmentItems
     }
 
     with allure.step("Sending POST request to create a schedule with missing data"):
@@ -128,8 +129,8 @@ def test_create_saved_treatment_schedule_invalid_data(client, get_token):
 
     new_schedule = {
         "treatmentName": "Invalid Treatment",
-        "description": "Invalid Description",
-        "scheduleItems": [
+        "treatmentDescription": "Invalid Description",
+        "treatmentItems": [
             {"dayNumber": "One", "dayTreatment": "Treatment A"}  # dayNumber should be an integer
         ]
     }
@@ -155,8 +156,8 @@ def test_create_saved_treatment_schedule_unauthorized_owner(client, get_token):
 
     new_schedule = {
         "treatmentName": "Unauthorized Test",
-        "description": "Unauthorized Description",
-        "scheduleItems": [
+        "treatmentDescription": "Unauthorized Description",
+        "treatmentItems": [
             {"dayNumber": 1, "dayTreatment": "Treatment A"},
             {"dayNumber": 2, "dayTreatment": "Treatment B"}
         ]
@@ -183,8 +184,8 @@ def test_create_saved_treatment_schedule_unauthorized_farmer(client, get_token):
 
     new_schedule = {
         "treatmentName": "Unauthorized Test",
-        "description": "Unauthorized Description",
-        "scheduleItems": [
+        "treatmentDescription": "Unauthorized Description",
+        "treatmentItems": [
             {"dayNumber": 1, "dayTreatment": "Treatment A"},
             {"dayNumber": 2, "dayTreatment": "Treatment B"}
         ]

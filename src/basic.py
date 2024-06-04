@@ -39,9 +39,10 @@ saved_treatment_schedule_itmes_collection = None
 saved_treatment_schedule_collection = None
 moving_car_status_collection = None
 period_of_disease_collection = None
+hardware_collection = None
 def connect_to_db():
     global client, db, images_collection, treatment_collection, reports_collection, user_collection, location_collection, zonesTreatmentScheduling_collection, disease_collection, treatment_schedule_collection, saved_treatment_schedule_collection, saved_treatment_schedule_itmes_collection
-    global zones_collection, moving_car_status_collection, period_of_disease_collection
+    global zones_collection, moving_car_status_collection, period_of_disease_collection, hardware_collection
 
     if client is None:
         import certifi
@@ -61,6 +62,7 @@ def connect_to_db():
         saved_treatment_schedule_itmes_collection = db["SavedTreatmentScheduleltems"]
         moving_car_status_collection = db["MovingCarStatus"]
         period_of_disease_collection = db["PeriodOfDisease"]
+        hardware_collection = db["Hardware"]
 
 connect_to_db()
 
@@ -187,6 +189,33 @@ def get_token_auth_header_owner(
         # Check if the user is activated
         # Assuming you have a function `is_user_activated` to check if the user is activated
         if not is_user_activated(user_collection ,user_id):
+            raise HTTPException(
+                status_code=401,
+                detail="User is not activated"
+            )
+        # Check expiration time
+        if datetime.now() > datetime.fromtimestamp(payload["exp"]):
+            raise HTTPException(status_code=401, detail="Token has expired")
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    
+def get_token_auth_header_hardware(
+    credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Token not provided. Please include a bearer token in the request header.")
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print("payload", payload)
+        user_type = payload["user_type"]
+        if user_type != "hardware":
+            raise HTTPException(status_code=401, detail="Only Hardware componenets can perform this operation")
+        user_id = payload["user_id"]
+
+        # Check if the user is activated
+        # Assuming you have a function `is_user_activated` to check if the user is activated
+        if not is_user_activated(hardware_collection ,user_id):
             raise HTTPException(
                 status_code=401,
                 detail="User is not activated"
