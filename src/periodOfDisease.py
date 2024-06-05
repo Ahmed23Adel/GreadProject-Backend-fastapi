@@ -16,7 +16,21 @@ async def create_period_of_disease(
         PeriodOfDiseaseImage.validate_zone_id(period_of_disease_image.zoneId)
         PeriodOfDiseaseImage.validate_current_disease(period_of_disease_image.currentDisease)
 
-    
+        # Check if there is any open period of disease for the given zoneId
+        open_period_of_disease = period_of_disease_collection.find_one({
+            "zoneId": ObjectId(period_of_disease_image.zoneId),
+            "$or": [
+                {"enderExpertId": {"$exists": False}},
+                {"enderExpertId": ""},
+                {"dateEnded": {"$exists": False}},
+                {"dateEnded": None}
+            ]
+        })
+
+        if open_period_of_disease:
+            raise HTTPException(status_code=400, detail="There is already an open period of disease for the given zoneId")
+
+        # If no open period, create a new one
         new_period_of_disease_image = {
             "zoneId": ObjectId(period_of_disease_image.zoneId),
             "dateCreated": period_of_disease_image.dateCreated,
@@ -28,22 +42,31 @@ async def create_period_of_disease(
             "specificTreatmentId": period_of_disease_image.specificTreatmentId,
         }
 
-        period_of_disease_collection.insert_one(new_period_of_disease_image)
+        result = period_of_disease_collection.insert_one(new_period_of_disease_image)
+        new_id = str(result.inserted_id)
 
-        return {"success": True, "data": {}}
+        return {"success": True, "data": {"id": new_id}}
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
     
     
-@v1.delete("/reject_period_of_disease/{period_of_disease_id}", response_model=dict)
-async def reject_period_of_disease(period_of_disease_id: str, token: str = Depends(get_token_auth_header)):
+@v1.delete("/reject_period_of_disease", response_model=dict)
+async def reject_period_of_disease(period_of_disease_id: str, token: str = Depends(get_token_auth_header_expert)):
     try:
-        # Check if the period of disease exists
+        # Check if the period of disease exists and if it hasn't been approved by an expert
         existing_period_of_disease = period_of_disease_collection.find_one({"_id": ObjectId(period_of_disease_id)})
         if existing_period_of_disease is None:
             raise HTTPException(status_code=404, detail="Period of disease not found")
+
+        if (
+            existing_period_of_disease.get("approverExpertId") 
+            and existing_period_of_disease["approverExpertId"] != ""
+            or existing_period_of_disease.get("dateApprovedByExpert")
+        ):
+            raise HTTPException(status_code=400, detail="Cannot reject an approved period of disease")
 
         # Delete the period of disease
         period_of_disease_collection.delete_one({"_id": ObjectId(period_of_disease_id)})
@@ -53,6 +76,7 @@ async def reject_period_of_disease(period_of_disease_id: str, token: str = Depen
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
     
     
     
