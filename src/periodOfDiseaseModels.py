@@ -6,11 +6,6 @@ from src.basic import *
 
 class PeriodOfDiseaseImage(BaseModel):
     zoneId: str
-    dateCreated: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    dateApprovedByExpert: Optional[datetime] = None
-    approverExpertId: Optional[str] = None
-    dateEnded: Optional[datetime] = None
-    enderExpertId: Optional[str] = None
     currentDisease: str
     specificTreatmentId: Optional[str] = None
 

@@ -29,17 +29,12 @@ async def create_period_of_disease(
 
         if open_period_of_disease:
             raise HTTPException(status_code=400, detail="There is already an open period of disease for the given zoneId")
-
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # If no open period, create a new one
         new_period_of_disease_image = {
             "zoneId": ObjectId(period_of_disease_image.zoneId),
-            "dateCreated": period_of_disease_image.dateCreated,
-            "dateApprovedByExpert": period_of_disease_image.dateApprovedByExpert,
-            "approverExpertId": period_of_disease_image.approverExpertId,
-            "dateEnded": period_of_disease_image.dateEnded,
-            "enderExpertId": period_of_disease_image.enderExpertId,
+            "dateCreated": today_start,
             "currentDisease": period_of_disease_image.currentDisease,
-            "specificTreatmentId": period_of_disease_image.specificTreatmentId,
         }
 
         result = period_of_disease_collection.insert_one(new_period_of_disease_image)
@@ -50,8 +45,53 @@ async def create_period_of_disease(
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
     
+@v1.put("/end_period_of_disease/", response_model=dict)
+async def end_period_of_disease(
+    period_of_disease_id: str,
+    ender_expert_id: str,
+    token: str = Depends(get_token_auth_header_expert)
+):
+    try:
+        # Check if the period of disease exists, is open, and approved
+        open_period_of_disease = period_of_disease_collection.find_one({
+            "_id": ObjectId(period_of_disease_id),
+            "$or": [
+                {"enderExpertId": {"$exists": False}},
+                {"enderExpertId": ""},
+                {"dateEnded": {"$exists": False}},
+                {"dateEnded": None}
+            ],
+            "approverExpertId": {"$ne": ""},
+            "dateApprovedByExpert": {"$exists": True}
+        })
+
+        if not open_period_of_disease:
+            raise HTTPException(status_code=400, detail="The period of disease is not open, approved, or does not exist")
+
+        # Set dateEnded to today's end date and enderExpertId
+        today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        update_result = period_of_disease_collection.update_one(
+            {"_id": ObjectId(period_of_disease_id)},
+            {"$set": {"dateEnded": today_end, "enderExpertId": ender_expert_id}}
+        )
+
+        if update_result.matched_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to update the period of disease")
+
+        # Update the treatment schedule items for the given period
+        treatment_update_result = treatment_schedule_collection.update_many(
+            {"periodOfTreatment": period_of_disease_id},
+            {"$set": {"treatmentDone": True}}
+        )
+
+        return {"success": True, "data": {"updated_treatment_items": treatment_update_result.modified_count}}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     
 @v1.delete("/reject_period_of_disease", response_model=dict)
 async def reject_period_of_disease(period_of_disease_id: str, token: str = Depends(get_token_auth_header_expert)):

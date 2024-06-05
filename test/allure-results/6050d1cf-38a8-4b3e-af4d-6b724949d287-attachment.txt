@@ -1,0 +1,2 @@
+response b'{"detail":"The period of disease is not open, approved, or does not exist"}'
+{'detail': 'The period of disease is not open, approved, or does not exist'}

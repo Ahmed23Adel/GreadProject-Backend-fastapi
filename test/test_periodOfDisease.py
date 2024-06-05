@@ -77,6 +77,7 @@ class TestDiseasePeriodManagement:
             "specificTreatmentId": "some-treatment-id"
         }
         response = client.post(url, json=payload, headers=headers)
+        print("response create", response.content)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"]
 

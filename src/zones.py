@@ -64,14 +64,19 @@ def extract_zone_number(zone_name: str) -> int:
 async def get_open_zones(token: str = Depends(get_token_auth_header)):
     try:
         # Fetch all period_of_disease documents with dateEnded not set
-        open_periods = period_of_disease_collection.find({"dateEnded": None})
+        open_periods = period_of_disease_collection.find({
+            "$or": [
+                {"dateEnded": {"$exists": False}},
+                {"dateEnded": None}
+            ]
+        })
         open_zone_ids = {period["zoneId"] for period in open_periods}
         if not open_zone_ids:
             return {"success": True, "data": []}
 
         # Fetch all zones with _id in open_zone_ids
         open_zones = zones_collection.find({"_id": {"$in": list(open_zone_ids)}})
-
+        print("open_zone_ids", open_zone_ids)
         zones_list = []
         for zone in open_zones:
             # Determine isLocationNewForExpert by checking if approverExpertId exists in period_of_disease_collection

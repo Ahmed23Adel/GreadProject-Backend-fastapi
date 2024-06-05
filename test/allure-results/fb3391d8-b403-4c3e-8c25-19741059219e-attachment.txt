@@ -1,0 +1,2 @@
+response {'currentDisease': 'Early blight', 'zoneId': '665c7db97267b0ca7eb55003', 'dateCreated': '2023-06-01', 'dateApprovedByExpert': None, 'approverExpertId': None, 'dateEnded': None, 'enderExpertId': None, 'specificTreatmentId': 'some-treatment-id'} b'{"success":true,"data":{"id":"66606e991456fb2d6aaf410f"}}'
+responsedel b'{"detail":"Only expert can perform this operation"}' 401
