@@ -3,6 +3,8 @@ from typing import Optional
 from datetime import datetime
 from bson import ObjectId
 from src.basic import *
+from enum import Enum
+from typing import Optional
 
 class PeriodOfDiseaseImage(BaseModel):
     zoneId: str
@@ -20,3 +22,8 @@ class PeriodOfDiseaseImage(BaseModel):
             raise HTTPException(status_code=400, detail="Invalid currentDisease")
 
 
+
+
+class RescheduleOption(str, Enum):
+    DELETE_EXISTING = "delete_existing"
+    KEEP_EXISTING = "keep_existing"

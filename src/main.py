@@ -21,3 +21,5 @@ from src.movingCar import *
 from src.periodOfDisease import *
 from src.images import *
 from src.treatmentSchedule import *
+from src.summary import *
+from src.reports import *

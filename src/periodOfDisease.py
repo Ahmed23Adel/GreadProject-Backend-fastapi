@@ -3,6 +3,7 @@ from src.basic import *
 from fastapi import Query
 from src.periodOfDiseaseModels import(
     PeriodOfDiseaseImage,
+    RescheduleOption
 )
 from datetime import datetime, timedelta
 
@@ -215,5 +216,82 @@ async def set_period_of_disease_specific_treatment(
         )
 
         return {"success": True, "message": "Specific treatment ID updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+  
+@v1.put("/reschedule-zone-check", response_model=dict)
+async def reschedule_zone_check(
+    period_of_disease_id: str,
+    expert_id: str,
+    reschedule_option: RescheduleOption = RescheduleOption.DELETE_EXISTING,  # Default to delete existing items
+    token: str = Depends(get_token_auth_header)
+):
+    try:
+        # Fetch the period of disease document
+        period_of_disease = period_of_disease_collection.find_one({
+            "_id": ObjectId(period_of_disease_id),
+            "approverExpertId": {"$ne": ""},
+            "dateApprovedByExpert": {"$exists": True}
+        })
+        
+        if not period_of_disease:
+            raise HTTPException(status_code=400, detail="The period of disease is not open or does not exist")
+
+        # Update the period of disease document
+        current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        period_of_disease_collection.update_one(
+            {"_id": ObjectId(period_of_disease_id)},
+            {
+                "$set": {
+                    "dateApprovedByExpert": current_date,
+                    "approverExpertId": expert_id
+                }
+            }
+        )
+
+        # Retrieve specificTreatmentId from the period of disease document
+        specific_treatment_id = period_of_disease.get("specificTreatmentId")
+        
+        # Determine treatment schedule items based on specific or default treatment
+        if specific_treatment_id:
+            treatment_schedule_items = saved_treatment_schedule_itmes_collection.find({"treatmentId": ObjectId(specific_treatment_id)})
+        else:
+            current_disease = period_of_disease.get("currentDisease")
+            if not current_disease:
+                raise HTTPException(status_code=404, detail="Current disease not found in period of disease")
+            
+            disease = disease_collection.find_one({"diseaseName": current_disease})
+            if not disease or "defaultSavedTreatment" not in disease:
+                raise HTTPException(status_code=404, detail="Default treatment not found for the disease")
+            
+            default_treatment_id = disease["defaultSavedTreatment"]
+            treatment_schedule_items = saved_treatment_schedule_itmes_collection.find({"treatmentId": default_treatment_id})
+
+        # Handle rescheduling option
+        if reschedule_option == RescheduleOption.DELETE_EXISTING:
+            # Delete existing treatment schedule items
+            treatment_schedule_collection.delete_many({"periodOfTreatment": period_of_disease_id})
+        elif reschedule_option == RescheduleOption.KEEP_EXISTING:
+            # Keep existing treatment schedule items
+            pass
+
+        # Create new entries in TreatmentSchedule for each day in the treatment schedule
+        for item in treatment_schedule_items:
+            day_num = int(item["dayNumber"])
+            treatment_date = current_date + timedelta(days=day_num)
+            treatment_desc = item["dayTreatment"]
+
+            new_treatment_schedule = {
+                "periodOfTreatment": period_of_disease_id,
+                "treatmentDate": treatment_date,
+                "treatmentDesc": treatment_desc,
+                "treatmentDone": False,
+                "treatmentDoneBy": None
+            }
+            treatment_schedule_collection.insert_one(new_treatment_schedule)
+
+        return {"success": True, "message": "Zone checked and treatment schedule created successfully"}
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

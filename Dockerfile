@@ -1,17 +1,23 @@
-# Use an official Python runtime as a parent image
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
+# Use the official Python image from the Docker Hub
+FROM python:3.9-slim
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
-# Copy the entire project directory into the container
-COPY . /app
+# Copy the requirements file into the container
+COPY requirements.txt .
 
-# Install any needed dependencies specified in requirements.txt
+# Install any dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8000 available to the world outside this container
+# Copy the rest of the working directory contents into the container
+COPY . .
+
+# Set environment variables
+ENV PORT=8000
+
+# Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
+# Command to run the server
 CMD ["python", "runserver.py"]

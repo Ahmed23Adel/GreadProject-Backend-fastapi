@@ -27,37 +27,6 @@ from src.utils import (
 )
 
 
-
-@app.post("/images/create/")
-def create_new_image(new_image: NewImage, token: str = Depends(get_token_auth_header)):
-    # Convert Classification and Confidence lists to BSON-compatible format
-    classification_bson = [int(x) for x in new_image.Classification]
-    confidence_bson = [float(x) for x in new_image.Confidence]
-
-    # Create the new image document
-    new_image_doc = {
-        "Image_Path": new_image.Image_Path,
-        "Location": new_image.Location,
-        "Date": new_image.Date,
-        "Time": new_image.Time,
-        "Classification": classification_bson,
-        "Confidence": confidence_bson,
-        "bbox": new_image.bbox,
-        "Image_Class": new_image.Image_Class,
-        "Edited": new_image.Edited,
-        "Treated": new_image.Treated,
-        "Resized_Path": new_image.Resized_Path,
-        "Annotated_Path": new_image.Annotated_Path
-    }
-
-    # Insert the new image document into the database
-    result = images_collection.insert_one(new_image_doc)
-
-    if result.inserted_id:
-        return {"success": True, "message": "Image created successfully", "image_id": str(result.inserted_id)}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to create image")
-
 def get_pics_stats_at_date(specific_date):
     # Count images with Image_Class 0 or 1
     total_images = images_collection.count_documents({"Date": specific_date})
@@ -281,17 +250,6 @@ async def get_date_per_diseased_plants(token: str = Depends(get_token_auth_heade
         return DatePerDiseasedPlantsResponse(success=True, data=DatePerDiseasedPlants(dates=unique_dates, percentages=percentages))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-@app.get("/get_all_locations", status_code=status.HTTP_200_OK, response_model=DataResponseLocations)
-def get_all_locations(token: str = Depends(get_token_auth_header)):
-    # Sample list of locations
-    unique_locations = list(images_collection.distinct("Location"))
-
-
-    # Return the response
-    return DataResponseLocations(success=True, data=LocationsResponse(locations=unique_locations))
 
 
 @v1.get("/get-blight-images-percentage", status_code=status.HTTP_200_OK, response_model=DataResponseStatistics)
