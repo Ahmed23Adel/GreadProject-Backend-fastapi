@@ -4,7 +4,10 @@ from fastapi import Query
 from src.zonesModels import ZoneResponse
 from typing import List
 from src.zonesModels import (
-    NewZoneRequest
+    NewZoneRequest,
+    Zone, 
+    PeriodOfDisease,
+    ZoneNamesInput
 )
 
 print("Intializing zones")
@@ -145,4 +148,51 @@ def get_default_treatment_description(disease_name: str):
 
 
 
+@v1.post("/handle_zones_periods_of_disease", response_model=dict)
+async def handle_zones_periods_of_disease(zone_names_input: ZoneNamesInput):
+    try:
+        period_ids = []
+        for zone in zone_names_input.zones:
+            zone_name = zone.zone_name
+            current_disease = zone.current_disease
+            
+            # Check if the zone exists, create it if not
+            existing_zone = zones_collection.find_one({"zoneName": zone_name})
+            if not existing_zone:
+                # Create the zone if it doesn't exist
+                new_zone = {"zoneName": zone_name}
+                result = zones_collection.insert_one(new_zone)
+                zone_id = str(result.inserted_id)
+            else:
+                zone_id = str(existing_zone["_id"])
+            
+            # Check if a period of disease is already open for this zone
+            open_period_of_disease = period_of_disease_collection.find_one({
+                "zoneId": ObjectId(zone_id),
+                "$or": [
+                    {"enderExpertId": {"$exists": False}},
+                    {"enderExpertId": ""},
+                    {"dateEnded": {"$exists": False}},
+                    {"dateEnded": None}
+                ]
+            })
+            
+            if not open_period_of_disease:
+                # If no open period, create a new one
+                today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                new_period_of_disease = {
+                    "zoneId": ObjectId(zone_id),
+                    "dateCreated": today_start,
+                    "currentDisease": current_disease,
+                }
+                
+                result = period_of_disease_collection.insert_one(new_period_of_disease)
+                period_id = str(result.inserted_id)
+                period_ids.append(period_id)
+            else:
+                period_id = str(open_period_of_disease["_id"])
+                period_ids.append(period_id)
 
+        return {"success": True, "data": {"periodIds": period_ids}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -12,6 +12,9 @@ from src.stasModels import (
     LocationHistoryModel,
 
 )
+from src.imagesModels import (
+    ImageInput
+)
 
 from src.utils import (
     parse_date_from,
@@ -62,3 +65,30 @@ def get_location_history(
     all_locs = [LocationHistory(**item) for item in result]
     all_locs_lst = LocationHistoryList(allHistory=all_locs)
     return LocationHistoryModel(success=True, data=all_locs_lst)
+
+
+@v1.post("/create_image", response_model=dict)
+async def create_image(image_input: ImageInput):
+    try:
+        today = datetime.utcnow().strftime("%Y-%m-%dT00:00:00.000+00:00")
+        new_image = {
+            "_id": ObjectId(),
+            "Image_Path": image_input.Image_Path,
+            "PeriodOfDiseaesId": image_input.PeriodOfDiseaesId,
+            "Date": today,
+            "Classification": image_input.Classification,
+            "Confidence": image_input.Confidence,
+            "bbox": image_input.bbox,
+            "Image_Class": image_input.Image_Class,
+            "Edited": 0,  # Always 0
+            "Resized_Path": image_input.Resized_Path,
+            "Annotated_Path": image_input.Annotated_Path
+        }
+        
+        # Insert the new image document into the database
+        result = images_collection.insert_one(new_image)
+        
+        # Return success response
+        return {"success": True, "message": "Image created successfully", "data": {"image_id": str(result.inserted_id)}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

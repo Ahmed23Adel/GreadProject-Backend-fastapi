@@ -15,3 +15,5 @@ async def get_moving_car_status():
         return {"success": True, "data": status_doc}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+    
