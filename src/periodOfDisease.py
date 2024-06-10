@@ -108,7 +108,10 @@ async def reject_period_of_disease(period_of_disease_id: str, token: str = Depen
             or existing_period_of_disease.get("dateApprovedByExpert")
         ):
             raise HTTPException(status_code=400, detail="Cannot reject an approved period of disease")
-
+        update_result = images_collection.update_many(
+            {"PeriodOfDiseaesId": period_of_disease_id},
+            {"$set": {"Edited": True, "Image_Class": 2}}
+        )
         # Delete the period of disease
         period_of_disease_collection.delete_one({"_id": ObjectId(period_of_disease_id)})
 
@@ -118,7 +121,6 @@ async def reject_period_of_disease(period_of_disease_id: str, token: str = Depen
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    
     
     
 from datetime import datetime
