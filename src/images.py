@@ -70,12 +70,13 @@ def get_location_history(
 @v1.post("/create_image", response_model=dict)
 async def create_image(image_input: ImageInput):
     try:
-        today = datetime.utcnow().strftime("%Y-%m-%dT00:00:00.000+00:00")
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        print("today_start", today_start)
         new_image = {
             "_id": ObjectId(),
             "Image_Path": image_input.Image_Path,
             "PeriodOfDiseaesId": image_input.PeriodOfDiseaesId,
-            "Date": today,
+            "Date": today_start,  # Directly use the datetime object
             "Classification": image_input.Classification,
             "Confidence": image_input.Confidence,
             "bbox": image_input.bbox,
